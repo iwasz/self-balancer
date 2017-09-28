@@ -1,11 +1,12 @@
-SET(TOOLCHAIN_PREFIX "/home/iwasz/local/share/armcortexm0-unknown-eabi" CACHE STRING "")
-SET(TARGET_TRIPLET "armcortexm0-unknown-eabi" CACHE STRING "")
+SET(TOOLCHAIN_PREFIX "/home/iwasz/local/share/armcortexm4-unknown-eabihf" CACHE STRING "")
+SET(TARGET_TRIPLET "armcortexm4-unknown-eabihf" CACHE STRING "")
 
-SET (DEVICE "STM32F072xB")
-SET (CUBE_ROOT "/home/iwasz/workspace/STM32Cube_FW_F0_V1.9.0")
+SET (DEVICE "STM32F407xx")
+ADD_DEFINITIONS("-DLIB_MICRO_STM32F4")
+SET (CUBE_ROOT "/home/iwasz/workspace/STM32Cube_FW_F4_V1.16.0")
 SET (CRYSTAL_HZ 8000000)
-SET (STARTUP_CODE "src/startup_stm32f072xb.s")
-SET (LINKER_SCRIPT "${CMAKE_SOURCE_DIR}/src/STM32F072RB_FLASH.ld")
+SET (STARTUP_CODE "src/startup_stm32f407xx.s")
+SET (LINKER_SCRIPT "${CMAKE_SOURCE_DIR}/src/STM32F407VG_FLASH.ld")
 
 SET(TOOLCHAIN_BIN_DIR ${TOOLCHAIN_PREFIX}/bin)
 SET(TOOLCHAIN_INC_DIR ${TOOLCHAIN_PREFIX}/${TARGET_TRIPLET}/include)
