@@ -6,6 +6,7 @@ include (stm32.cmake)
 
 INCLUDE_DIRECTORIES("src/")
 INCLUDE_DIRECTORIES("../libmicro/src/")
+INCLUDE_DIRECTORIES("../libmicro/src/imu")
 
 # +-----------------+
 # | My code         |
@@ -29,8 +30,26 @@ SET (APP_SOURCES
         "../libmicro/src/Gpio.h"
         "../libmicro/src/Spi.cc"
         "../libmicro/src/Spi.h"
+        "../libmicro/src/I2c.cc"
+        "../libmicro/src/I2c.h"
         "../libmicro/src/Nrf24L01P.cc"
         "../libmicro/src/Nrf24L01P.h"
+        "../libmicro/src/imu/IAccelerometer.h"
+        "../libmicro/src/imu/IGyroscope.h"
+        "../libmicro/src/imu/IMagnetometer.h"
+        "../libmicro/src/imu/IImu.h"
+#        "../libmicro/src/imu/lis3dsh/ILis3dshBsp.h"
+#        "../libmicro/src/imu/lis3dsh/Lis3dshAccelerometer.cc"
+#        "../libmicro/src/imu/lis3dsh/Lis3dshAccelerometer.h"
+#        "../libmicro/src/imu/lis3dsh/Lis3dshConstants.h"
+#        "../libmicro/src/imu/lis3dsh/Lis3dshSpiBsp.cc"
+#        "../libmicro/src/imu/lis3dsh/Lis3dshSpiBsp.h"
+         "../libmicro/src/imu/mpu6050/helper_3dmath.h"
+         "../libmicro/src/imu/mpu6050/Mpu6050_6Axis_MotionApps20.h"
+         "../libmicro/src/imu/mpu6050/Mpu6050_9Axis_MotionApps41.h"
+         "../libmicro/src/imu/mpu6050/Mpu6050.cc"
+         "../libmicro/src/imu/mpu6050/Mpu6050.h"
+
 
 # +--------------+
 # | STM Cube     |

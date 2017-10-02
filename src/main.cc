@@ -9,6 +9,7 @@
 #include "Debug.h"
 #include "Gpio.h"
 #include "Hal.h"
+#include "Nrf24L01P.h"
 
 static void SystemClock_Config (void);
 
@@ -32,7 +33,53 @@ int main ()
         d->init (115200);
         d->print ("selfbalancer\n");
 
+        /*---------------------------------------------------------------------------*/
+
+        Gpio ceRx (GPIOB, GPIO_PIN_11);
+        ceRx.set (false);
+
+        Gpio irqRx (GPIOB, GPIO_PIN_13, GPIO_MODE_IT_FALLING, GPIO_PULLUP);
+        HAL_NVIC_SetPriority (EXTI15_10_IRQn, 3, 0);
+        HAL_NVIC_EnableIRQ (EXTI15_10_IRQn);
+
+        Gpio spiRxGpiosNss (GPIOB, GPIO_PIN_12, GPIO_MODE_OUTPUT_OD, GPIO_PULLUP);
+        Gpio spiRxGpiosMisoMosiSck (GPIOB, GPIO_PIN_3 | GPIO_PIN_4 | GPIO_PIN_5, GPIO_MODE_AF_PP, GPIO_NOPULL, GPIO_SPEED_FREQ_HIGH, GPIO_AF5_SPI1);
+        Spi spiRx (SPI1);
+        spiRx.setNssPin (&spiRxGpiosNss);
+
+        Nrf24L01P nrfRx (&spiRx, &ceRx, &irqRx);
+        nrfRx.setConfig (Nrf24L01P::MASK_NO_IRQ, true, Nrf24L01P::CRC_LEN_1);
+        nrfRx.setAutoAck (Nrf24L01P::ENAA_P1 | Nrf24L01P::ENAA_P0);      // Redundant
+        nrfRx.setEnableDataPipe (Nrf24L01P::ERX_P1 | Nrf24L01P::ERX_P0); // Redundant
+        nrfRx.setAdressWidth (Nrf24L01P::WIDTH_5);                       // Redundant
+        nrfRx.setAutoRetransmit (Nrf24L01P::WAIT_1000, Nrf24L01P::RETRANSMIT_15);
+        nrfRx.setChannel (100);
+        nrfRx.setDataRate (Nrf24L01P::MBPS_1, Nrf24L01P::DBM_0);
+        nrfRx.setPayloadLength (0, 1);
+        nrfRx.setPayloadLength (1, 1);
+
+        uint8_t bufRx[4] = {
+                0,
+        };
+
+        // TODO this works only if we receive manually in main loop
+        nrfRx.setOnData ([d, &nrfRx, &bufRx] {
+                nrfRx.receive (bufRx, 1);
+                d->print (bufRx[0]);
+                d->print ("\n");
+        });
+
+        nrfRx.powerUp (Nrf24L01P::RX);
+
+        //        uint8_t bufTx[4];
+        //        bufTx[0] = 0x66;
+
         while (1) {
+                                nrfRx.receive (bufRx, 1);
+                                d->print (bufRx[0]);
+                                d->print ("\n");
+                HAL_Delay (1000);
+//                d->print (".");
         }
 }
 
