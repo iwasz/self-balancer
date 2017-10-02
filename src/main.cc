@@ -9,7 +9,10 @@
 #include "Debug.h"
 #include "Gpio.h"
 #include "Hal.h"
+#include "I2c.h"
 #include "Nrf24L01P.h"
+#include "Spi.h"
+#include "imu/mpu6050/Mpu6050.h"
 
 static void SystemClock_Config (void);
 
@@ -28,17 +31,19 @@ int main ()
         HAL_Init ();
         SystemClock_Config ();
 
-        Gpio debugGpios (GPIOD, GPIO_PIN_8 | GPIO_PIN_9, GPIO_MODE_AF_PP, GPIO_NOPULL, GPIO_SPEED_FREQ_HIGH, GPIO_AF7_USART3);
+        Gpio debugGpios (GPIOD, GPIO_PIN_8 | GPIO_PIN_9, GPIO_MODE_AF_OD, GPIO_PULLUP, GPIO_SPEED_FREQ_HIGH, GPIO_AF7_USART3);
         Debug *d = Debug::singleton ();
         d->init (115200);
         d->print ("selfbalancer\n");
 
-        /*---------------------------------------------------------------------------*/
+        /*+-------------------------------------------------------------------------+*/
+        /*| NRF24L01+                                                               |*/
+        /*+-------------------------------------------------------------------------+*/
 
         Gpio ceRx (GPIOB, GPIO_PIN_11);
         ceRx.set (false);
 
-        Gpio irqRx (GPIOB, GPIO_PIN_13, GPIO_MODE_IT_FALLING, GPIO_PULLUP);
+        Gpio irqRxNrf (GPIOB, GPIO_PIN_13, GPIO_MODE_IT_FALLING, GPIO_PULLUP);
         HAL_NVIC_SetPriority (EXTI15_10_IRQn, 3, 0);
         HAL_NVIC_EnableIRQ (EXTI15_10_IRQn);
 
@@ -47,7 +52,7 @@ int main ()
         Spi spiRx (SPI1);
         spiRx.setNssPin (&spiRxGpiosNss);
 
-        Nrf24L01P nrfRx (&spiRx, &ceRx, &irqRx);
+        Nrf24L01P nrfRx (&spiRx, &ceRx, &irqRxNrf);
         nrfRx.setConfig (Nrf24L01P::MASK_NO_IRQ, true, Nrf24L01P::CRC_LEN_1);
         nrfRx.setAutoAck (Nrf24L01P::ENAA_P1 | Nrf24L01P::ENAA_P0);      // Redundant
         nrfRx.setEnableDataPipe (Nrf24L01P::ERX_P1 | Nrf24L01P::ERX_P0); // Redundant
@@ -71,15 +76,60 @@ int main ()
 
         nrfRx.powerUp (Nrf24L01P::RX);
 
-        //        uint8_t bufTx[4];
-        //        bufTx[0] = 0x66;
+        /*+-------------------------------------------------------------------------+*/
+        /*| MPU6050                                                                 |*/
+        /*+-------------------------------------------------------------------------+*/
+
+        // Not used right now
+        Gpio irqRxMpu (GPIOB, GPIO_PIN_9, GPIO_MODE_IT_FALLING, GPIO_PULLUP);
+        HAL_NVIC_SetPriority (EXTI9_5_IRQn, 3, 0);
+        HAL_NVIC_EnableIRQ (EXTI9_5_IRQn);
+
+        Gpio i2cPins (GPIOB, GPIO_PIN_6 | GPIO_PIN_7, GPIO_MODE_AF_OD, GPIO_PULLUP, GPIO_SPEED_FREQ_HIGH, GPIO_AF4_I2C1);
+        I2c i2c;
+        Mpu6050 mpu6050 (&i2c);
+
+        if (mpu6050.testConnection ()) {
+                d->print ("MPU 6050 OK");
+        }
+        else {
+                d->print ("MPU 6050 Fail");
+        }
+
+        mpu6050.setTempSensorEnabled (true);
+
+        HAL_Delay (100);
+
+        d->print ("Temp : ");
+        d->print (mpu6050.getTemperature ());
+        d->print ("\n");
+
+        HAL_Delay (100);
 
         while (1) {
-                                nrfRx.receive (bufRx, 1);
-                                d->print (bufRx[0]);
-                                d->print ("\n");
-                HAL_Delay (1000);
-//                d->print (".");
+                //                nrfRx.receive (bufRx, 1);
+                //                d->print (bufRx[0]);
+                //                d->print ("\n");
+
+                int16_t ax, ay, az;
+                int16_t gx, gy, gz;
+
+                mpu6050.getMotion6 (&ax, &ay, &az, &gx, &gy, &gz);
+
+                d->print (ax);
+                d->print (", ");
+                d->print (ay);
+                d->print (", ");
+                d->print (az);
+                d->print (",   ");
+                d->print (gx);
+                d->print (", ");
+                d->print (gy);
+                d->print (", ");
+                d->print (gz);
+                d->print ("\n");
+
+                HAL_Delay (200);
         }
 }
 
