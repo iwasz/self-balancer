@@ -32,6 +32,8 @@ SET (APP_SOURCES
         "../libmicro/src/Spi.h"
         "../libmicro/src/I2c.cc"
         "../libmicro/src/I2c.h"
+        "../libmicro/src/Pwm.cc"
+        "../libmicro/src/Pwm.h"
         "../libmicro/src/Nrf24L01P.cc"
         "../libmicro/src/Nrf24L01P.h"
         "../libmicro/src/imu/IAccelerometer.h"

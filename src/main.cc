@@ -7,10 +7,12 @@
  ****************************************************************************/
 
 #include "Debug.h"
+#include "ErrorHandler.h"
 #include "Gpio.h"
 #include "Hal.h"
 #include "I2c.h"
 #include "Nrf24L01P.h"
+#include "Pwm.h"
 #include "Spi.h"
 #include "imu/mpu6050/Mpu6050.h"
 
@@ -23,6 +25,8 @@ void __verbose_terminate_handler ()
                 ;
 }
 }
+
+/*****************************************************************************/
 
 /*****************************************************************************/
 
@@ -40,14 +44,14 @@ int main ()
         /*| NRF24L01+                                                               |*/
         /*+-------------------------------------------------------------------------+*/
 
-        Gpio ceRx (GPIOB, GPIO_PIN_11);
+        Gpio ceRx (GPIOD, GPIO_PIN_0);
         ceRx.set (false);
 
-        Gpio irqRxNrf (GPIOB, GPIO_PIN_13, GPIO_MODE_IT_FALLING, GPIO_PULLUP);
-        HAL_NVIC_SetPriority (EXTI15_10_IRQn, 3, 0);
-        HAL_NVIC_EnableIRQ (EXTI15_10_IRQn);
+        Gpio irqRxNrf (GPIOD, GPIO_PIN_1, GPIO_MODE_IT_FALLING, GPIO_PULLUP);
+        HAL_NVIC_SetPriority (EXTI1_IRQn, 3, 0);
+        HAL_NVIC_EnableIRQ (EXTI1_IRQn);
 
-        Gpio spiRxGpiosNss (GPIOB, GPIO_PIN_12, GPIO_MODE_OUTPUT_OD, GPIO_PULLUP);
+        Gpio spiRxGpiosNss (GPIOD, GPIO_PIN_2, GPIO_MODE_OUTPUT_OD, GPIO_PULLUP);
         Gpio spiRxGpiosMisoMosiSck (GPIOB, GPIO_PIN_3 | GPIO_PIN_4 | GPIO_PIN_5, GPIO_MODE_AF_PP, GPIO_NOPULL, GPIO_SPEED_FREQ_HIGH, GPIO_AF5_SPI1);
         Spi spiRx (SPI1);
         spiRx.setNssPin (&spiRxGpiosNss);
@@ -97,6 +101,21 @@ int main ()
         }
 
         mpu6050.setTempSensorEnabled (true);
+
+        /*+-------------------------------------------------------------------------+*/
+        /*| Motors                                                                  |*/
+        /*+-------------------------------------------------------------------------+*/
+
+        Pwm pwmLeft (TIM1, (uint32_t) (HAL_RCC_GetHCLKFreq () / 2000000) - 1, 10000 - 1);
+        pwmLeft.enableChannels (Pwm::CHANNEL1 | Pwm::CHANNEL2);
+        Gpio pwmLeftPins (GPIOE, GPIO_PIN_9 | GPIO_PIN_11, GPIO_MODE_AF_PP, GPIO_NOPULL, GPIO_SPEED_FREQ_LOW, GPIO_AF1_TIM1);
+
+        Pwm pwmRight (TIM3, (uint32_t) (HAL_RCC_GetHCLKFreq () / 2000000) - 1, 10000 - 1);
+        pwmRight.enableChannels (Pwm::CHANNEL3 | Pwm::CHANNEL4);
+        Gpio pwmRightPins (GPIOB, GPIO_PIN_0 | GPIO_PIN_1, GPIO_MODE_AF_PP, GPIO_NOPULL, GPIO_SPEED_FREQ_LOW, GPIO_AF2_TIM3);
+
+        pwmLeft.setDuty (Pwm::CHANNEL1, 1);
+        pwmRight.setDuty (Pwm::CHANNEL3, 1);
 
         HAL_Delay (100);
 
