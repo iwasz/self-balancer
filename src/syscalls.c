@@ -4,11 +4,12 @@
  *  Created on: 2 Nov 2010
  *      Author: nanoage.co.uk
  */
+#include "Hal.h"
+#include "debug.h"
 #include <errno.h>
 #include <sys/stat.h>
 #include <sys/times.h>
 #include <sys/unistd.h>
-#include"Hal.h"
 
 #undef errno
 extern int errno;
@@ -120,7 +121,7 @@ static char *heap_end;
 size_t getFreeMemory ()
 {
         char *stack = (char *)__get_MSP ();
-        return  stack - heap_end;
+        return stack - heap_end;
 }
 
 /*
@@ -232,6 +233,6 @@ int _wait (int *status)
  */
 int _write (int file, char *ptr, int len)
 {
-//        debugLog (PRINTF, PRINTF_T, ptr, len + 1);
+        debugPrint ((uint8_t *)ptr, len);
         return len;
 }

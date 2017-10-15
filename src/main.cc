@@ -14,7 +14,10 @@
 #include "Nrf24L01P.h"
 #include "Pwm.h"
 #include "Spi.h"
+#include "Timer.h"
 #include "imu/mpu6050/Mpu6050.h"
+#include <cerrno>
+#include <cmath>
 
 static void SystemClock_Config (void);
 
@@ -27,6 +30,49 @@ void __verbose_terminate_handler ()
 }
 
 /*****************************************************************************/
+
+class Motor {
+public:
+        Motor (Pwm *p, Pwm::Channel channelFwd, Pwm::Channel channelRev, uint32_t fullScale)
+            : pwm (p), channelFwd (channelFwd), channelRev (channelRev), factor (fullScale / 100), fullScale (fullScale)
+        {
+        }
+
+        /**
+         * @brief setSpeed
+         * @param speed from -100 to 100
+         */
+        void setSpeed (int32_t speed);
+
+private:
+        Pwm *pwm;
+        Pwm::Channel channelFwd;
+        Pwm::Channel channelRev;
+        uint32_t factor;
+        uint32_t fullScale;
+};
+
+/*****************************************************************************/
+
+void Motor::setSpeed (int32_t speed)
+{
+        int newDuty = speed * factor;
+
+        newDuty = std::min<int> (std::abs (newDuty), fullScale);
+
+        if (speed > 0) {
+                pwm->setDuty (channelFwd, newDuty);
+                pwm->setDuty (channelRev, 1);
+        }
+        else if (speed < 0) {
+                pwm->setDuty (channelFwd, 1);
+                pwm->setDuty (channelRev, newDuty);
+        }
+        else {
+                pwm->setDuty (channelFwd, 1);
+                pwm->setDuty (channelRev, 1);
+        }
+}
 
 /*****************************************************************************/
 
@@ -109,13 +155,18 @@ int main ()
         Pwm pwmLeft (TIM1, (uint32_t) (HAL_RCC_GetHCLKFreq () / 2000000) - 1, 10000 - 1);
         pwmLeft.enableChannels (Pwm::CHANNEL1 | Pwm::CHANNEL2);
         Gpio pwmLeftPins (GPIOE, GPIO_PIN_9 | GPIO_PIN_11, GPIO_MODE_AF_PP, GPIO_NOPULL, GPIO_SPEED_FREQ_LOW, GPIO_AF1_TIM1);
+        Motor motorLeft (&pwmLeft, Pwm::CHANNEL1, Pwm::CHANNEL2, 10000);
 
         Pwm pwmRight (TIM3, (uint32_t) (HAL_RCC_GetHCLKFreq () / 2000000) - 1, 10000 - 1);
         pwmRight.enableChannels (Pwm::CHANNEL3 | Pwm::CHANNEL4);
         Gpio pwmRightPins (GPIOB, GPIO_PIN_0 | GPIO_PIN_1, GPIO_MODE_AF_PP, GPIO_NOPULL, GPIO_SPEED_FREQ_LOW, GPIO_AF2_TIM3);
+        Motor motorRight (&pwmRight, Pwm::CHANNEL3, Pwm::CHANNEL4, 10000);
 
-        pwmLeft.setDuty (Pwm::CHANNEL1, 1);
-        pwmRight.setDuty (Pwm::CHANNEL3, 1);
+        //        pwmLeft.setDuty (Pwm::CHANNEL1, 1);
+        //        pwmRight.setDuty (Pwm::CHANNEL3, 1);
+
+        motorLeft.setSpeed (0);
+        motorRight.setSpeed (0);
 
         HAL_Delay (100);
 
@@ -125,30 +176,79 @@ int main ()
 
         HAL_Delay (100);
 
+        float angleSp = 1.720;
+
+        Timer readout;
+        Timer printout;
+
+        const int AVG_LEN = 5;
+        int i = 0;
+
         while (1) {
+                int16_t axt[AVG_LEN], ayt[AVG_LEN], azt[AVG_LEN];
+                int ax, ay, az;
+                int16_t gx, gy, gz;
+
+                if (readout.isExpired ()) {
+                        mpu6050.getMotion6 (&axt[i], &ayt[i], &azt[i], &gx, &gy, &gz);
+                        readout.start (1);
+
+                        // Low pass filter for accelerometer
+                        if (i < AVG_LEN - 1) {
+                                ++i;
+                        }
+                        else {
+                                i = 0;
+
+                                ax = ay = az = 0;
+
+                                for (int j = 0; j < AVG_LEN; ++j) {
+                                        ax += axt[j];
+                                        ay += ayt[j];
+                                        az += azt[j];
+                                }
+
+                                ax /= AVG_LEN;
+                                ay /= AVG_LEN;
+                                az /= AVG_LEN;
+                        }
+
+                        // High pass flter for gyroscope
+
+                }
+
                 //                nrfRx.receive (bufRx, 1);
                 //                d->print (bufRx[0]);
                 //                d->print ("\n");
 
-                int16_t ax, ay, az;
-                int16_t gx, gy, gz;
+                if (printout.isExpired ()) {
+                        d->print (ax);
+                        d->print (", ");
+                        d->print (ay);
+                        d->print (", ");
+                        d->print (az);
+                        d->print (",   ");
+                        d->print (gx);
+                        d->print (", ");
+                        d->print (gy);
+                        d->print (", ");
+                        d->print (gz);
+                        d->print ("\n");
 
-                mpu6050.getMotion6 (&ax, &ay, &az, &gx, &gy, &gz);
+                        float R = sqrt (float(ax * ax) + float(ay * ay) + float(az * az));
+                        // float anX = acosf (ax / R);
+                        // float anY = acosf (ay / R);
+                        float anZ = acosf (az / R);
 
-                d->print (ax);
-                d->print (", ");
-                d->print (ay);
-                d->print (", ");
-                d->print (az);
-                d->print (",   ");
-                d->print (gx);
-                d->print (", ");
-                d->print (gy);
-                d->print (", ");
-                d->print (gz);
-                d->print ("\n");
+                        float error = anZ - angleSp;
+                        // d->print (-error * 600);
+                        // d->print ("\n");
 
-                HAL_Delay (200);
+                        //                        motorLeft.setSpeed (-error * 1000);
+                        //                        motorRight.setSpeed (-error * 1000);
+
+                        printout.start (20);
+                }
         }
 }
 

@@ -26,6 +26,7 @@ SET (APP_SOURCES
         "../libmicro/src/Timer.h"
         "../libmicro/src/Debug.cc"
         "../libmicro/src/Debug.h"
+        "../libmicro/src/debug.h"
         "../libmicro/src/Gpio.cc"
         "../libmicro/src/Gpio.h"
         "../libmicro/src/Spi.cc"
@@ -241,6 +242,7 @@ ADD_DEFINITIONS ("-DHSE_VALUE=${CRYSTAL_HZ}")
 
 ADD_EXECUTABLE(${CMAKE_PROJECT_NAME}.elf ${APP_SOURCES})
 TARGET_LINK_LIBRARIES (${CMAKE_PROJECT_NAME}.elf stdc++)
+TARGET_LINK_LIBRARIES (${CMAKE_PROJECT_NAME}.elf m)
 
 SET (CMAKE_OBJCOPY ${TOOLCHAIN_BIN_DIR}/${TARGET_TRIPLET}-objcopy)
 SET (CMAKE_OBJDUMP ${TOOLCHAIN_BIN_DIR}/${TARGET_TRIPLET}-objdump)
