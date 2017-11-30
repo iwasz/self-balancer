@@ -2,7 +2,7 @@ CMAKE_MINIMUM_REQUIRED(VERSION 2.8)
 SET (CMAKE_VERBOSE_MAKEFILE OFF)
 
 PROJECT (self-balancer)
-include (stm32.cmake)
+ENABLE_LANGUAGE (ASM-ATT)
 
 INCLUDE_DIRECTORIES("src/")
 INCLUDE_DIRECTORIES("../libmicro/src/")
@@ -11,12 +11,8 @@ INCLUDE_DIRECTORIES("../libmicro/src/imu")
 # +-----------------+
 # | My code         |
 # +-----------------+
-SET (APP_SOURCES
+ADD_EXECUTABLE(${CMAKE_PROJECT_NAME}.elf
         "src/main.cc"
-        "src/stm32f4xx_it.c"
-        "src/syscalls.c"
-        "src/system_stm32f4xx.c"
-        "src/stm32f4xx_hal_conf.h"
         "../libmicro/src/ErrorHandler.h"
         "../libmicro/src/ErrorHandler.c"
         "../libmicro/src/Hal.h"
@@ -52,12 +48,17 @@ SET (APP_SOURCES
          "../libmicro/src/imu/mpu6050/Mpu6050_9Axis_MotionApps41.h"
          "../libmicro/src/imu/mpu6050/Mpu6050.cc"
          "../libmicro/src/imu/mpu6050/Mpu6050.h"
-
+         )
 
 # +--------------+
 # | STM Cube     |
 # +--------------+
-
+# Workaround : rozdzielenie kodu C++ i C powoduje, że QTCreator dobrze parsuje nagłówki C++. Bez tego podziału QTCreator się gubi.
+add_library ("stm" STATIC
+        "src/stm32f4xx_it.c"
+        "src/syscalls.c"
+        "src/system_stm32f4xx.c"
+        "src/stm32f4xx_hal_conf.h"
         "${CUBE_ROOT}/Drivers/STM32F4xx_HAL_Driver/Src/stm32f4xx_hal_adc.c"
         "${CUBE_ROOT}/Drivers/STM32F4xx_HAL_Driver/Src/stm32f4xx_hal_adc_ex.c"
         "${CUBE_ROOT}/Drivers/STM32F4xx_HAL_Driver/Src/stm32f4xx_hal.c"
@@ -235,17 +236,14 @@ SET (APP_SOURCES
         "${CUBE_ROOT}/Drivers/STM32F4xx_HAL_Driver/Inc/stm32f4xx_ll_usb.h"
         "${CUBE_ROOT}/Drivers/STM32F4xx_HAL_Driver/Inc/stm32f4xx_ll_utils.h"
         "${CUBE_ROOT}/Drivers/STM32F4xx_HAL_Driver/Inc/stm32f4xx_ll_wwdg.h"
-        "${STARTUP_CODE}")
+        "${STARTUP_CODE}"
+)
 
 
-ADD_DEFINITIONS ("-DHSE_VALUE=${CRYSTAL_HZ}")
-
-ADD_EXECUTABLE(${CMAKE_PROJECT_NAME}.elf ${APP_SOURCES})
 TARGET_LINK_LIBRARIES (${CMAKE_PROJECT_NAME}.elf stdc++)
 TARGET_LINK_LIBRARIES (${CMAKE_PROJECT_NAME}.elf m)
+TARGET_LINK_LIBRARIES (${CMAKE_PROJECT_NAME}.elf -Wl,--whole-archive stm -Wl,--no-whole-archive)
 
-SET (CMAKE_OBJCOPY ${TOOLCHAIN_BIN_DIR}/${TARGET_TRIPLET}-objcopy)
-SET (CMAKE_OBJDUMP ${TOOLCHAIN_BIN_DIR}/${TARGET_TRIPLET}-objdump)
 ADD_CUSTOM_TARGET(${CMAKE_PROJECT_NAME}.bin ALL DEPENDS ${CMAKE_PROJECT_NAME}.elf COMMAND ${CMAKE_OBJCOPY} -Obinary ${CMAKE_PROJECT_NAME}.elf ${CMAKE_PROJECT_NAME}.bin)
 
 FIND_PROGRAM (ST_FLASH st-flash)

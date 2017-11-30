@@ -19,6 +19,10 @@
 #include <cerrno>
 #include <cmath>
 
+#ifndef M_PI
+#define M_PI 3.14159265358979323846
+#endif
+
 static void SystemClock_Config (void);
 
 namespace __gnu_cxx {
@@ -27,7 +31,7 @@ void __verbose_terminate_handler ()
         while (1)
                 ;
 }
-}
+} // namespace __gnu_cxx
 
 /*****************************************************************************/
 
@@ -73,6 +77,119 @@ void Motor::setSpeed (int32_t speed)
                 pwm->setDuty (channelRev, 1);
         }
 }
+
+/*****************************************************************************/
+
+template <class T> class CircularBuffer {
+public:
+        CircularBuffer (size_t size) : buf (new T[size]), size (size) {}
+        ~CircularBuffer () { delete[] buf; }
+
+        void put (T item);
+        T get (void);
+        T operator[] (int i) const;
+
+        void reset () { head = tail; }
+        bool isEmpty () const { return head == tail; }
+
+        bool isFull () const { return ((head + 1) % size) == tail; }
+        size_t getSize () const { return size - 1; }
+
+private:
+        T *buf;
+        size_t head = 0;
+        size_t tail = 0;
+        size_t size;
+};
+
+/*****************************************************************************/
+
+template <class T> void CircularBuffer<T>::put (T item)
+{
+        buf[head] = item;
+        head = (head + 1) % size;
+
+        if (head == tail) {
+                tail = (tail + 1) % size;
+        }
+}
+
+/*****************************************************************************/
+
+template <class T> T CircularBuffer<T>::get ()
+{
+        if (isEmpty ()) {
+                return T ();
+        }
+
+        // Read data and advance the tail (we now have a free space)
+        auto val = buf[tail];
+        tail = (tail + 1) % size;
+
+        return val;
+}
+
+/*****************************************************************************/
+
+template <class T> T CircularBuffer<T>::operator[] (int i) const { return buf[tail + (i % size)]; }
+
+/*****************************************************************************/
+
+//#define SAMPLEFILTER_TAP_NUM 5
+
+// static double filter_taps[SAMPLEFILTER_TAP_NUM]
+//        = { 0.02857983994169657,   -0.07328836181028245, 0.04512928732568175,   0.03422632401030237,  -0.034724262386629436, -0.05343090761376418,
+//            0.032914528649623416,  0.09880818246272206,  -0.034135422078843417, -0.3160339484471911,  0.5341936566511765,    -0.3160339484471911,
+//            -0.034135422078843417, 0.09880818246272206,  0.032914528649623416,  -0.05343090761376418, -0.034724262386629436, 0.03422632401030237,
+//            0.04512928732568175,   -0.07328836181028245, 0.02857983994169657 };
+
+// static double filter_taps[SAMPLEFILTER_TAP_NUM]
+//        = { -0.25, -0.25, -0.25, -0.25, 1 };
+
+static constexpr float filter_taps[] = {
+        0.2, 0.2, 0.2, 0.2, 0.2, 0.2, 0.2, 0.2, 0.2, 0.2, 0.2, 0.2, 0.2, 0.2, 0.2, 0.2, 0.2, 0.2, 0.2, 0.2,
+        0.2, 0.2, 0.2, 0.2, 0.2, 0.2, 0.2, 0.2, 0.2, 0.2, 0.2, 0.2, 0.2, 0.2, 0.2, 0.2, 0.2, 0.2, 0.2, 0.2,
+};
+
+template <typename FloatType, int num_coeffs, const FloatType *coeffs> class FirFilter {
+public:
+        FirFilter () : current_index_ (0)
+        {
+                for (int i = 0; i < num_coeffs; ++i) {
+                        history_[i] = 0.0;
+                }
+        }
+
+        void put (FloatType value)
+        {
+                history_[current_index_++] = value;
+
+                if (current_index_ == num_coeffs) {
+                        current_index_ = 0;
+                }
+        }
+
+        FloatType get ()
+        {
+                FloatType output = 0.0;
+                int index = current_index_;
+
+                for (int i = 0; i < num_coeffs; ++i) {
+                        if (index != 0) {
+                                --index;
+                        }
+                        else {
+                                index = num_coeffs - 1;
+                        }
+                        output += history_[index] * coeffs[i];
+                }
+                return output;
+        }
+
+private:
+        FloatType history_[num_coeffs];
+        int current_index_;
+};
 
 /*****************************************************************************/
 
@@ -162,8 +279,8 @@ int main ()
         Gpio pwmRightPins (GPIOB, GPIO_PIN_0 | GPIO_PIN_1, GPIO_MODE_AF_PP, GPIO_NOPULL, GPIO_SPEED_FREQ_LOW, GPIO_AF2_TIM3);
         Motor motorRight (&pwmRight, Pwm::CHANNEL3, Pwm::CHANNEL4, 10000);
 
-        //        pwmLeft.setDuty (Pwm::CHANNEL1, 1);
-        //        pwmRight.setDuty (Pwm::CHANNEL3, 1);
+        pwmLeft.setDuty (Pwm::CHANNEL1, 1);
+        pwmRight.setDuty (Pwm::CHANNEL3, 1);
 
         motorLeft.setSpeed (0);
         motorRight.setSpeed (0);
@@ -176,22 +293,58 @@ int main ()
 
         HAL_Delay (100);
 
-        float angleSp = 1.720;
 
         Timer readout;
-        Timer printout;
 
+#if 0
         const int AVG_LEN = 5;
         int i = 0;
+        CircularBuffer<int16_t> gInX (3);
+        CircularBuffer<int16_t> gOutX (2);
+        CircularBuffer<int16_t> gyy (3);
+        CircularBuffer<int16_t> gyz (3);
+        float angle = 0;
+        float m1, m;
+        m1 = m = 0;
+        uint32_t n = 0;
+
+        FirFilter<float, sizeof (filter_taps) / sizeof (float), filter_taps> myFilter;
+
+        float out = 0;
+
 
         while (1) {
                 int16_t axt[AVG_LEN], ayt[AVG_LEN], azt[AVG_LEN];
                 int ax, ay, az;
                 int16_t gx, gy, gz;
 
+                //                int16_t gxin[3], gyin[3], gzin[3];
+                //                int gk = 0;
+
+                float wc = tan (M_PI * (300.0 / 1000.0));
+                float k1 = 2 * wc, k2 = wc * wc;
+                float a0, a1, a2, b1, b2;
+
+                a0 = a2 = k2 / (1 + k1 + k2);
+                a1 = -2 * a0;
+                b1 = -((1 / k2) - 1) * 2 * a0;
+                b2 = 1 - (a0 + a1 + a2 + b1);
+
                 if (readout.isExpired ()) {
                         mpu6050.getMotion6 (&axt[i], &ayt[i], &azt[i], &gx, &gy, &gz);
-                        readout.start (1);
+
+                        m = m1 + ((gx - m1) / ++n);
+                        m1 = m;
+
+                        //                        gx -= m;
+                        //                        gy -= 113;
+                        //                        gz -= 63;
+
+                        //                        output[i] = (input[i] * ALPHA) + (ouptut[i] * (1.0 - ALPHA));
+                        out = (gx - m) * ALPHA + (out * (1.0 - ALPHA));
+
+                        angle += out;
+                        myFilter.put ((gx - m));
 
                         // Low pass filter for accelerometer
                         if (i < AVG_LEN - 1) {
@@ -214,26 +367,21 @@ int main ()
                         }
 
                         // High pass flter for gyroscope
+                        //                        gInX.put (gx);
 
-                }
+                        //                        if (gInX.isFull ()) {
+                        //                                int o = a0 * gInX[0] + a1 * gInX[-1] + a2 * gInX[-2] + b1 * gOutX[0] + b2 * gOutX[-1];
+                        //                                gOutX.put (o);
+                        //                                // d->print (gOutX.get ());
+                        //                                // d->print (", ");
+                        //                        }
 
-                //                nrfRx.receive (bufRx, 1);
-                //                d->print (bufRx[0]);
-                //                d->print ("\n");
+                        //                nrfRx.receive (bufRx, 1);
+                        //                d->print (bufRx[0]);
+                        //                d->print ("\n");
 
-                if (printout.isExpired ()) {
-                        d->print (ax);
-                        d->print (", ");
-                        d->print (ay);
-                        d->print (", ");
-                        d->print (az);
-                        d->print (",   ");
-                        d->print (gx);
-                        d->print (", ");
-                        d->print (gy);
-                        d->print (", ");
-                        d->print (gz);
-                        d->print ("\n");
+                        //                        printf ("%d, %d, %d, %d, %d, %d, %d\n", ax, ay, ax, gx, gy, gz, angle);
+                        printf ("%d, %d, %d, angle = %d\n", gx, int(gx - m), int(out), int(angle));
 
                         float R = sqrt (float(ax * ax) + float(ay * ay) + float(az * az));
                         // float anX = acosf (ax / R);
@@ -247,9 +395,79 @@ int main ()
                         //                        motorLeft.setSpeed (-error * 1000);
                         //                        motorRight.setSpeed (-error * 1000);
 
-                        printout.start (20);
+                        readout.start (20);
                 }
         }
+
+#else
+        uint32_t n = 0;
+        float angleAccel, angle = 0;
+        float ofx = 0, ofy = 0, ofz = 0;
+
+        const int readoutDelayMs = 20;
+        const float dt = 1.0 / readoutDelayMs;
+        const float GYROSCALE = 1000;
+        int16_t ax, ay, az;
+        int16_t gx, gy, gz;
+        float error, prevError, integral, derivative;
+        integral = derivative = prevError = 0;
+        float kp, ki, kd, out;
+        kp = 100;
+        ki = 1;
+        kd = 1;
+
+        while (1) {
+                if (readout.isExpired ()) {
+                        mpu6050.getMotion6 (&az, &ay, &ax, &gz, &gy, &gx);
+                        angleAccel = atan (float(ay) / float(ax));
+                        angleAccel = (angleAccel > 0) ? ((M_PI / 2) - angleAccel) : (-((M_PI / 2) + angleAccel));
+
+                        // Korekta (ułożenie akcelerometru względem ramy). TODO automatycznie?
+                        angleAccel -= 0.14;
+
+                        // "Calibration"
+                        if (++n < 200) {
+                                ofx += gx;
+                                ofy += gy;
+                                ofz += gz;
+                                printf ("%d, %d\n", gx, gy);
+                                continue;
+                        }
+                        else if (n == 200) {
+                                ofx /= 200.0;
+                                ofy /= 200.0;
+                                ofz /= 200.0;
+                                printf ("Offsets : %d, %d\n", int(ofx), int(ofy));
+                        }
+
+                        gx -= ofx;
+                        gy -= ofy;
+                        gz -= ofz;
+
+                        angle -= (gz / GYROSCALE) * dt;
+                        angle = 0.95 * (angle) + 0.05 * angleAccel * 13; // TODO to 13 skaluje akcelerometr
+
+                        // PID
+                        error = 0 - angle;
+                        integral += error * dt;
+                        derivative = (error - prevError) / dt;
+                        out = kp * error + ki * integral + kd * derivative;
+                        prevError = error;
+
+//                        motorLeft.setSpeed (out);
+//                        motorRight.setSpeed (out);
+
+                        // End
+//                        printf ("%d, %d, %d, %d, %d\n", int(angleAccel * 1000), gy, gz, int(angle * 1000), int(out * 100));
+                        readout.start (readoutDelayMs);
+
+                        // Nrf
+                        nrfRx.receive (bufRx, 1);
+                        d->print (bufRx[0]);
+                        d->print ("\n");
+                }
+        }
+#endif
 }
 
 /*****************************************************************************/
@@ -293,3 +511,109 @@ static void SystemClock_Config (void)
                 __HAL_FLASH_PREFETCH_BUFFER_ENABLE ();
         }
 }
+
+
+
+/******************************************************************************/
+/*            Cortex-M4 Processor Exceptions Handlers                         */
+/******************************************************************************/
+#if 0
+
+/**
+ * @brief   This function handles NMI exception.
+ * @param  None
+ * @retval None
+ */
+//__attribute__ ((interrupt ("IRQ")))
+extern "C" void NMI_Handler (void) {}
+
+/**
+ * @brief  This function handles Hard Fault exception.
+ * @param  None
+ * @retval None
+ */
+//__attribute__ ((interrupt ("IRQ")))
+extern "C" void HardFault_Handler (void)
+{
+        /* Go to infinite loop when Hard Fault exception occurs */
+        while (1) {
+        }
+}
+
+/**
+ * @brief  This function handles Memory Manage exception.
+ * @param  None
+ * @retval None
+ */
+//__attribute__ ((interrupt ("IRQ")))
+extern "C" void MemManage_Handler (void)
+{
+        /* Go to infinite loop when Memory Manage exception occurs */
+        while (1) {
+        }
+}
+
+/**
+ * @brief  This function handles Bus Fault exception.
+ * @param  None
+ * @retval None
+ */
+//__attribute__ ((interrupt ("IRQ")))
+extern "C" void BusFault_Handler (void)
+{
+        /* Go to infinite loop when Bus Fault exception occurs */
+        while (1) {
+        }
+}
+
+/**
+ * @brief  This function handles Usage Fault exception.
+ * @param  None
+ * @retval None
+ */
+//__attribute__ ((interrupt ("IRQ")))
+extern "C" void UsageFault_Handler (void)
+{
+        /* Go to infinite loop when Usage Fault exception occurs */
+        while (1) {
+        }
+}
+
+/**
+ * @brief  This function handles SVCall exception.
+ * @param  None
+ * @retval None
+ */
+//__attribute__ ((interrupt ("IRQ")))
+extern "C" void SVC_Handler (void) {}
+
+/**
+ * @brief  This function handles Debug Monitor exception.
+ * @param  None
+ * @retval None
+ */
+//__attribute__ ((interrupt ("IRQ")))
+extern "C" void DebugMon_Handler (void) {}
+
+/**
+ * @brief  This function handles PendSVC exception.
+ * @param  None
+ * @retval None
+ */
+//__attribute__ ((interrupt ("IRQ")))
+extern "C" void PendSV_Handler (void) {}
+
+/**
+ * @brief  This function handles SysTick Handler.
+ * @param  None
+ * @retval None
+ */
+//__attribute__ ((interrupt ("IRQ")))
+extern "C" void SysTick_Handler (void)
+{
+        HAL_IncTick ();
+
+        /* Call user callback */
+        HAL_SYSTICK_IRQHandler ();
+}
+#endif
