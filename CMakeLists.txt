@@ -33,6 +33,8 @@ ADD_EXECUTABLE(${CMAKE_PROJECT_NAME}.elf
         "../libmicro/src/Pwm.h"
         "../libmicro/src/Nrf24L01P.cc"
         "../libmicro/src/Nrf24L01P.h"
+        "../libmicro/src/Usart.cc"
+        "../libmicro/src/Usart.h"
         "../libmicro/src/imu/IAccelerometer.h"
         "../libmicro/src/imu/IGyroscope.h"
         "../libmicro/src/imu/IMagnetometer.h"

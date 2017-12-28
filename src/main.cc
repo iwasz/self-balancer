@@ -15,6 +15,7 @@
 #include "Pwm.h"
 #include "Spi.h"
 #include "Timer.h"
+#include "Usart.h"
 #include "imu/mpu6050/Mpu6050.h"
 #include <cerrno>
 #include <cmath>
@@ -22,6 +23,12 @@
 #ifndef M_PI
 #define M_PI 3.14159265358979323846
 #endif
+
+const uint8_t CX10_ADDRESS[] = { 0xcc, 0xcc, 0xcc, 0xcc, 0xcc };
+#define PACKET_SIZE 5
+#define CHANNEL 100
+
+/*****************************************************************************/
 
 static void SystemClock_Config (void);
 
@@ -37,8 +44,8 @@ void __verbose_terminate_handler ()
 
 class Motor {
 public:
-        Motor (Pwm *p, Pwm::Channel channelFwd, Pwm::Channel channelRev, uint32_t fullScale)
-            : pwm (p), channelFwd (channelFwd), channelRev (channelRev), factor (fullScale / 100), fullScale (fullScale)
+        Motor (Gpio *dir, Pwm *p, Pwm::Channel channel, uint32_t fullScale)
+            : direction (dir), pwm (p), channel (channel), factor (fullScale / 100), fullScale (fullScale)
         {
         }
 
@@ -49,9 +56,9 @@ public:
         void setSpeed (int32_t speed);
 
 private:
+        Gpio *direction;
         Pwm *pwm;
-        Pwm::Channel channelFwd;
-        Pwm::Channel channelRev;
+        Pwm::Channel channel;
         uint32_t factor;
         uint32_t fullScale;
 };
@@ -61,77 +68,10 @@ private:
 void Motor::setSpeed (int32_t speed)
 {
         int newDuty = speed * factor;
-
         newDuty = std::min<int> (std::abs (newDuty), fullScale);
-
-        if (speed > 0) {
-                pwm->setDuty (channelFwd, newDuty);
-                pwm->setDuty (channelRev, 1);
-        }
-        else if (speed < 0) {
-                pwm->setDuty (channelFwd, 1);
-                pwm->setDuty (channelRev, newDuty);
-        }
-        else {
-                pwm->setDuty (channelFwd, 1);
-                pwm->setDuty (channelRev, 1);
-        }
+        pwm->setDuty (channel, newDuty);
+        direction->set (speed > 0);
 }
-
-/*****************************************************************************/
-
-template <class T> class CircularBuffer {
-public:
-        CircularBuffer (size_t size) : buf (new T[size]), size (size) {}
-        ~CircularBuffer () { delete[] buf; }
-
-        void put (T item);
-        T get (void);
-        T operator[] (int i) const;
-
-        void reset () { head = tail; }
-        bool isEmpty () const { return head == tail; }
-
-        bool isFull () const { return ((head + 1) % size) == tail; }
-        size_t getSize () const { return size - 1; }
-
-private:
-        T *buf;
-        size_t head = 0;
-        size_t tail = 0;
-        size_t size;
-};
-
-/*****************************************************************************/
-
-template <class T> void CircularBuffer<T>::put (T item)
-{
-        buf[head] = item;
-        head = (head + 1) % size;
-
-        if (head == tail) {
-                tail = (tail + 1) % size;
-        }
-}
-
-/*****************************************************************************/
-
-template <class T> T CircularBuffer<T>::get ()
-{
-        if (isEmpty ()) {
-                return T ();
-        }
-
-        // Read data and advance the tail (we now have a free space)
-        auto val = buf[tail];
-        tail = (tail + 1) % size;
-
-        return val;
-}
-
-/*****************************************************************************/
-
-template <class T> T CircularBuffer<T>::operator[] (int i) const { return buf[tail + (i % size)]; }
 
 /*****************************************************************************/
 
@@ -198,10 +138,15 @@ int main ()
         HAL_Init ();
         SystemClock_Config ();
 
-        Gpio debugGpios (GPIOD, GPIO_PIN_8 | GPIO_PIN_9, GPIO_MODE_AF_OD, GPIO_PULLUP, GPIO_SPEED_FREQ_HIGH, GPIO_AF7_USART3);
+        Gpio uartGpios (GPIOD, GPIO_PIN_8 | GPIO_PIN_9, GPIO_MODE_AF_OD, GPIO_PULLUP, GPIO_SPEED_FREQ_HIGH, GPIO_AF7_USART3);
+        HAL_NVIC_SetPriority (USART3_IRQn, 6, 0);
+        HAL_NVIC_EnableIRQ (USART3_IRQn);
+        Usart uart (USART3, 115200);
+
+        Debug debug (&uart);
+        Debug::singleton () = &debug;
         Debug *d = Debug::singleton ();
-        d->init (115200);
-        d->print ("selfbalancer\n");
+        d->print ("Self-balancer here\n");
 
         /*+-------------------------------------------------------------------------+*/
         /*| NRF24L01+                                                               |*/
@@ -215,33 +160,26 @@ int main ()
         HAL_NVIC_EnableIRQ (EXTI1_IRQn);
 
         Gpio spiRxGpiosNss (GPIOD, GPIO_PIN_2, GPIO_MODE_OUTPUT_OD, GPIO_PULLUP);
+        /// PB3 = SCK, PB4 = MISO, PB5 = MOSI
         Gpio spiRxGpiosMisoMosiSck (GPIOB, GPIO_PIN_3 | GPIO_PIN_4 | GPIO_PIN_5, GPIO_MODE_AF_PP, GPIO_NOPULL, GPIO_SPEED_FREQ_HIGH, GPIO_AF5_SPI1);
         Spi spiRx (SPI1);
         spiRx.setNssPin (&spiRxGpiosNss);
 
         Nrf24L01P nrfRx (&spiRx, &ceRx, &irqRxNrf);
-        nrfRx.setConfig (Nrf24L01P::MASK_NO_IRQ, true, Nrf24L01P::CRC_LEN_1);
-        nrfRx.setAutoAck (Nrf24L01P::ENAA_P1 | Nrf24L01P::ENAA_P0);      // Redundant
-        nrfRx.setEnableDataPipe (Nrf24L01P::ERX_P1 | Nrf24L01P::ERX_P0); // Redundant
-        nrfRx.setAdressWidth (Nrf24L01P::WIDTH_5);                       // Redundant
+        nrfRx.setConfig (Nrf24L01P::MASK_NO_IRQ, true, Nrf24L01P::CRC_LEN_2);
+        nrfRx.setTxAddress (CX10_ADDRESS, 5);
+        nrfRx.setRxAddress (0, CX10_ADDRESS, 5);
+        nrfRx.setAutoAck (Nrf24L01P::ENAA_P0);
+        nrfRx.setEnableDataPipe (Nrf24L01P::ERX_P0);
+        nrfRx.setAdressWidth (Nrf24L01P::WIDTH_5);
+        nrfRx.setChannel (CHANNEL);
         nrfRx.setAutoRetransmit (Nrf24L01P::WAIT_1000, Nrf24L01P::RETRANSMIT_15);
-        nrfRx.setChannel (100);
+        nrfRx.setPayloadLength (0, PACKET_SIZE);
         nrfRx.setDataRate (Nrf24L01P::MBPS_1, Nrf24L01P::DBM_0);
-        nrfRx.setPayloadLength (0, 1);
-        nrfRx.setPayloadLength (1, 1);
 
-        uint8_t bufRx[4] = {
-                0,
+        uint8_t bufRx[PACKET_SIZE] = {
+                1,
         };
-
-        // TODO this works only if we receive manually in main loop
-        nrfRx.setOnData ([d, &nrfRx, &bufRx] {
-                nrfRx.receive (bufRx, 1);
-                d->print (bufRx[0]);
-                d->print ("\n");
-        });
-
-        nrfRx.powerUp (Nrf24L01P::RX);
 
         /*+-------------------------------------------------------------------------+*/
         /*| MPU6050                                                                 |*/
@@ -269,15 +207,20 @@ int main ()
         /*| Motors                                                                  |*/
         /*+-------------------------------------------------------------------------+*/
 
-        Pwm pwmLeft (TIM1, (uint32_t) (HAL_RCC_GetHCLKFreq () / 2000000) - 1, 10000 - 1);
-        pwmLeft.enableChannels (Pwm::CHANNEL1 | Pwm::CHANNEL2);
-        Gpio pwmLeftPins (GPIOE, GPIO_PIN_9 | GPIO_PIN_11, GPIO_MODE_AF_PP, GPIO_NOPULL, GPIO_SPEED_FREQ_LOW, GPIO_AF1_TIM1);
-        Motor motorLeft (&pwmLeft, Pwm::CHANNEL1, Pwm::CHANNEL2, 10000);
+        // 1kHz if I'm correct
+        const int PWM_PERIOD = 2000;
 
-        Pwm pwmRight (TIM3, (uint32_t) (HAL_RCC_GetHCLKFreq () / 2000000) - 1, 10000 - 1);
-        pwmRight.enableChannels (Pwm::CHANNEL3 | Pwm::CHANNEL4);
-        Gpio pwmRightPins (GPIOB, GPIO_PIN_0 | GPIO_PIN_1, GPIO_MODE_AF_PP, GPIO_NOPULL, GPIO_SPEED_FREQ_LOW, GPIO_AF2_TIM3);
-        Motor motorRight (&pwmRight, Pwm::CHANNEL3, Pwm::CHANNEL4, 10000);
+        Pwm pwmLeft (TIM1, (uint32_t) (HAL_RCC_GetHCLKFreq () / 2000000) - 1, PWM_PERIOD - 1);
+        pwmLeft.enableChannels (Pwm::CHANNEL2);
+        Gpio directionLeftPin (GPIOE, GPIO_PIN_9);
+        Gpio pwmLeftPin (GPIOE, GPIO_PIN_11, GPIO_MODE_AF_PP, GPIO_NOPULL, GPIO_SPEED_FREQ_LOW, GPIO_AF1_TIM1);
+        Motor motorLeft (&directionLeftPin, &pwmLeft, Pwm::CHANNEL2, PWM_PERIOD);
+
+        Pwm pwmRight (TIM3, (uint32_t) (HAL_RCC_GetHCLKFreq () / 2000000) - 1, PWM_PERIOD - 1);
+        pwmRight.enableChannels (Pwm::CHANNEL3);
+        Gpio directionRightPin (GPIOB, GPIO_PIN_1);
+        Gpio pwmRightPin (GPIOB, GPIO_PIN_0, GPIO_MODE_AF_PP, GPIO_NOPULL, GPIO_SPEED_FREQ_LOW, GPIO_AF2_TIM3);
+        Motor motorRight (&directionRightPin, &pwmRight, Pwm::CHANNEL3, PWM_PERIOD);
 
         pwmLeft.setDuty (Pwm::CHANNEL1, 1);
         pwmRight.setDuty (Pwm::CHANNEL3, 1);
@@ -293,128 +236,185 @@ int main ()
 
         HAL_Delay (100);
 
-
         Timer readout;
+        Timer timeControl;
 
-#if 0
-        const int AVG_LEN = 5;
-        int i = 0;
-        CircularBuffer<int16_t> gInX (3);
-        CircularBuffer<int16_t> gOutX (2);
-        CircularBuffer<int16_t> gyy (3);
-        CircularBuffer<int16_t> gyz (3);
-        float angle = 0;
-        float m1, m;
-        m1 = m = 0;
-        uint32_t n = 0;
+        /*
+                const int AVG_LEN = 5;
+                int i = 0;
+                CircularBuffer<int16_t> gInX (3);
+                CircularBuffer<int16_t> gOutX (2);
+                CircularBuffer<int16_t> gyy (3);
+                CircularBuffer<int16_t> gyz (3);
+                float angle = 0;
+                float m1, m;
+                m1 = m = 0;
+                uint32_t n = 0;
 
-        FirFilter<float, sizeof (filter_taps) / sizeof (float), filter_taps> myFilter;
+                FirFilter<float, sizeof (filter_taps) / sizeof (float), filter_taps> myFilter;
 
-        float out = 0;
+                float out = 0;
 
 
-        while (1) {
-                int16_t axt[AVG_LEN], ayt[AVG_LEN], azt[AVG_LEN];
-                int ax, ay, az;
-                int16_t gx, gy, gz;
+                while (1) {
+                        int16_t axt[AVG_LEN], ayt[AVG_LEN], azt[AVG_LEN];
+                        int ax, ay, az;
+                        int16_t gx, gy, gz;
 
-                //                int16_t gxin[3], gyin[3], gzin[3];
-                //                int gk = 0;
+                        //                int16_t gxin[3], gyin[3], gzin[3];
+                        //                int gk = 0;
 
-                float wc = tan (M_PI * (300.0 / 1000.0));
-                float k1 = 2 * wc, k2 = wc * wc;
-                float a0, a1, a2, b1, b2;
+                        float wc = tan (M_PI * (300.0 / 1000.0));
+                        float k1 = 2 * wc, k2 = wc * wc;
+                        float a0, a1, a2, b1, b2;
 
-                a0 = a2 = k2 / (1 + k1 + k2);
-                a1 = -2 * a0;
-                b1 = -((1 / k2) - 1) * 2 * a0;
-                b2 = 1 - (a0 + a1 + a2 + b1);
+                        a0 = a2 = k2 / (1 + k1 + k2);
+                        a1 = -2 * a0;
+                        b1 = -((1 / k2) - 1) * 2 * a0;
+                        b2 = 1 - (a0 + a1 + a2 + b1);
 
-                if (readout.isExpired ()) {
-                        mpu6050.getMotion6 (&axt[i], &ayt[i], &azt[i], &gx, &gy, &gz);
+                        if (readout.isExpired ()) {
+                                mpu6050.getMotion6 (&axt[i], &ayt[i], &azt[i], &gx, &gy, &gz);
 
-                        m = m1 + ((gx - m1) / ++n);
-                        m1 = m;
+                                m = m1 + ((gx - m1) / ++n);
+                                m1 = m;
 
-                        //                        gx -= m;
-                        //                        gy -= 113;
-                        //                        gz -= 63;
+                                //                        gx -= m;
+                                //                        gy -= 113;
+                                //                        gz -= 63;
 
-                        //                        output[i] = (input[i] * ALPHA) + (ouptut[i] * (1.0 - ALPHA));
-                        out = (gx - m) * ALPHA + (out * (1.0 - ALPHA));
+                                //                        output[i] = (input[i] * ALPHA) + (ouptut[i] * (1.0 - ALPHA));
+                                out = (gx - m) * ALPHA + (out * (1.0 - ALPHA));
 
-                        angle += out;
-                        myFilter.put ((gx - m));
+                                angle += out;
+                                myFilter.put ((gx - m));
 
-                        // Low pass filter for accelerometer
-                        if (i < AVG_LEN - 1) {
-                                ++i;
-                        }
-                        else {
-                                i = 0;
+                                // Low pass filter for accelerometer
+                                if (i < AVG_LEN - 1) {
+                                        ++i;
+                                }
+                                else {
+                                        i = 0;
 
-                                ax = ay = az = 0;
+                                        ax = ay = az = 0;
 
-                                for (int j = 0; j < AVG_LEN; ++j) {
-                                        ax += axt[j];
-                                        ay += ayt[j];
-                                        az += azt[j];
+                                        for (int j = 0; j < AVG_LEN; ++j) {
+                                                ax += axt[j];
+                                                ay += ayt[j];
+                                                az += azt[j];
+                                        }
+
+                                        ax /= AVG_LEN;
+                                        ay /= AVG_LEN;
+                                        az /= AVG_LEN;
                                 }
 
-                                ax /= AVG_LEN;
-                                ay /= AVG_LEN;
-                                az /= AVG_LEN;
+                                // High pass flter for gyroscope
+                                //                        gInX.put (gx);
+
+                                //                        if (gInX.isFull ()) {
+                                //                                int o = a0 * gInX[0] + a1 * gInX[-1] + a2 * gInX[-2] + b1 * gOutX[0] + b2 * gOutX[-1];
+                                //                                gOutX.put (o);
+                                //                                // d->print (gOutX.get ());
+                                //                                // d->print (", ");
+                                //                        }
+
+                                //                nrfRx.receive (bufRx, 1);
+                                //                d->print (bufRx[0]);
+                                //                d->print ("\n");
+
+                                //                        printf ("%d, %d, %d, %d, %d, %d, %d\n", ax, ay, ax, gx, gy, gz, angle);
+                                printf ("%d, %d, %d, angle = %d\n", gx, int(gx - m), int(out), int(angle));
+
+                                float R = sqrt (float(ax * ax) + float(ay * ay) + float(az * az));
+                                // float anX = acosf (ax / R);
+                                // float anY = acosf (ay / R);
+                                float anZ = acosf (az / R);
+
+                                float error = anZ - angleSp;
+                                // d->print (-error * 600);
+                                // d->print ("\n");
+
+                                //                        motorLeft.setSpeed (-error * 1000);
+                                //                        motorRight.setSpeed (-error * 1000);
+
+                                readout.start (20);
                         }
-
-                        // High pass flter for gyroscope
-                        //                        gInX.put (gx);
-
-                        //                        if (gInX.isFull ()) {
-                        //                                int o = a0 * gInX[0] + a1 * gInX[-1] + a2 * gInX[-2] + b1 * gOutX[0] + b2 * gOutX[-1];
-                        //                                gOutX.put (o);
-                        //                                // d->print (gOutX.get ());
-                        //                                // d->print (", ");
-                        //                        }
-
-                        //                nrfRx.receive (bufRx, 1);
-                        //                d->print (bufRx[0]);
-                        //                d->print ("\n");
-
-                        //                        printf ("%d, %d, %d, %d, %d, %d, %d\n", ax, ay, ax, gx, gy, gz, angle);
-                        printf ("%d, %d, %d, angle = %d\n", gx, int(gx - m), int(out), int(angle));
-
-                        float R = sqrt (float(ax * ax) + float(ay * ay) + float(az * az));
-                        // float anX = acosf (ax / R);
-                        // float anY = acosf (ay / R);
-                        float anZ = acosf (az / R);
-
-                        float error = anZ - angleSp;
-                        // d->print (-error * 600);
-                        // d->print ("\n");
-
-                        //                        motorLeft.setSpeed (-error * 1000);
-                        //                        motorRight.setSpeed (-error * 1000);
-
-                        readout.start (20);
                 }
-        }
-
-#else
+        */
         uint32_t n = 0;
-        float angleAccel, angle = 0;
+        float angleAccel, angle = 0, angleGyro = 0;
         float ofx = 0, ofy = 0, ofz = 0;
 
-        const int readoutDelayMs = 20;
-        const float dt = 1.0 / readoutDelayMs;
-        const float GYROSCALE = 1000;
+        // TODO why when set to 10, timeCnt reads 91, and when set to 9 timeCnt is 100? When 10 it shoud be 100.
+        const int readoutDelayMs = 9;
+        const float dt = /*1.0 / readoutDelayMs*/ readoutDelayMs + 1;
+        const float GYROSCALE = 6500;
+        const int ACCELSCALE = 13;
         int16_t ax, ay, az;
         int16_t gx, gy, gz;
         float error, prevError, integral, derivative;
         integral = derivative = prevError = 0;
         float kp, ki, kd, out;
-        kp = 100;
-        ki = 1;
-        kd = 1;
+        kp = 90;
+        ki = 0.7;
+        kd = 0.7;
+        float correction = 0.12;
+
+        nrfRx.setOnData ([d, &nrfRx, &bufRx, &kp, &ki, &kd, &correction, &integral, &prevError, &motorLeft, &motorRight] {
+                //                d->print ("IRQ: ");
+                uint8_t *out = nrfRx.receive (bufRx, PACKET_SIZE);
+                //                for (int i = 0; i < PACKET_SIZE; ++i) {
+                //                        d->print (out[i]);
+                //                        d->print (",");
+                //                }
+                //                d->print ("\n");
+
+                uint8_t command = out[0];
+                int param = *reinterpret_cast<int *> (out + 1);
+
+                d->print ("Command : ");
+                d->print (&command, 1);
+                d->print (" ");
+                d->print (param);
+                d->print ("\n");
+
+                switch (command) {
+                case 'p':
+                        kp = param;
+                        break;
+
+                case 'i':
+                        ki = param / 1000.0;
+                        break;
+
+                case 'd':
+                        kd = param / 1000.0;
+                        break;
+
+                case 'c':
+                        correction = param / 1000.0;
+                        break;
+
+                case 'm':
+                        motorLeft.setSpeed (param);
+                        motorRight.setSpeed (param);
+
+                        break;
+
+                default:
+                        d->print ("Unknown command. Available cmds : p,i,d,c");
+                        break;
+                }
+
+                integral = 0;
+                prevError = 0;
+        });
+
+        nrfRx.powerUp (Nrf24L01P::RX);
+
+        timeControl.start (1000);
+        int timeCnt = 0;
 
         while (1) {
                 if (readout.isExpired ()) {
@@ -423,7 +423,7 @@ int main ()
                         angleAccel = (angleAccel > 0) ? ((M_PI / 2) - angleAccel) : (-((M_PI / 2) + angleAccel));
 
                         // Korekta (ułożenie akcelerometru względem ramy). TODO automatycznie?
-                        angleAccel -= 0.14;
+                        angleAccel -= correction;
 
                         // "Calibration"
                         if (++n < 200) {
@@ -444,8 +444,16 @@ int main ()
                         gy -= ofy;
                         gz -= ofz;
 
-                        angle -= (gz / GYROSCALE) * dt;
-                        angle = 0.95 * (angle) + 0.05 * angleAccel * 13; // TODO to 13 skaluje akcelerometr
+                        angle -= (gz / GYROSCALE) / dt;
+                        angleGyro = angle;
+                        angleAccel *= ACCELSCALE;
+
+                        /*
+                         * TODO to 13 skaluje akcelerometr. TODO2 ALE CZEMU!? Nie pamiętam po co to było
+                         * ale prawdopodobnie chodziło o to, żeby dopasować jednostki żyroskopu i akcelerometru
+                         * do siebie.
+                         */
+                        angle = 0.98 * (angle) + 0.02 * angleAccel;
 
                         // PID
                         error = 0 - angle;
@@ -454,20 +462,22 @@ int main ()
                         out = kp * error + ki * integral + kd * derivative;
                         prevError = error;
 
-//                        motorLeft.setSpeed (out);
-//                        motorRight.setSpeed (out);
+                        motorLeft.setSpeed (out);
+                        motorRight.setSpeed (out);
 
                         // End
-//                        printf ("%d, %d, %d, %d, %d\n", int(angleAccel * 1000), gy, gz, int(angle * 1000), int(out * 100));
+                        //                        printf ("%d, %d, %d, %d, %d\n", int(angleAccel * 1000), gy, gz, int(angle * 1000), int(out * 100));
                         readout.start (readoutDelayMs);
-
-                        // Nrf
-                        nrfRx.receive (bufRx, 1);
-                        d->print (bufRx[0]);
-                        d->print ("\n");
+                        ++timeCnt;
+                        // printf ("gyro : %d, accell : %d, complement : %d\n", int(angleGyro * 1000), int (angleAccel * 1000), int (angle * 1000));
                 }
+
+                //                if (timeControl.isExpired ()) {
+                //                        printf ("%d, %d\n", timeCnt, int (angle * 1000));
+                //                        timeCnt = 0;
+                //                        timeControl.start (1000);
+                //                }
         }
-#endif
 }
 
 /*****************************************************************************/
@@ -511,109 +521,3 @@ static void SystemClock_Config (void)
                 __HAL_FLASH_PREFETCH_BUFFER_ENABLE ();
         }
 }
-
-
-
-/******************************************************************************/
-/*            Cortex-M4 Processor Exceptions Handlers                         */
-/******************************************************************************/
-#if 0
-
-/**
- * @brief   This function handles NMI exception.
- * @param  None
- * @retval None
- */
-//__attribute__ ((interrupt ("IRQ")))
-extern "C" void NMI_Handler (void) {}
-
-/**
- * @brief  This function handles Hard Fault exception.
- * @param  None
- * @retval None
- */
-//__attribute__ ((interrupt ("IRQ")))
-extern "C" void HardFault_Handler (void)
-{
-        /* Go to infinite loop when Hard Fault exception occurs */
-        while (1) {
-        }
-}
-
-/**
- * @brief  This function handles Memory Manage exception.
- * @param  None
- * @retval None
- */
-//__attribute__ ((interrupt ("IRQ")))
-extern "C" void MemManage_Handler (void)
-{
-        /* Go to infinite loop when Memory Manage exception occurs */
-        while (1) {
-        }
-}
-
-/**
- * @brief  This function handles Bus Fault exception.
- * @param  None
- * @retval None
- */
-//__attribute__ ((interrupt ("IRQ")))
-extern "C" void BusFault_Handler (void)
-{
-        /* Go to infinite loop when Bus Fault exception occurs */
-        while (1) {
-        }
-}
-
-/**
- * @brief  This function handles Usage Fault exception.
- * @param  None
- * @retval None
- */
-//__attribute__ ((interrupt ("IRQ")))
-extern "C" void UsageFault_Handler (void)
-{
-        /* Go to infinite loop when Usage Fault exception occurs */
-        while (1) {
-        }
-}
-
-/**
- * @brief  This function handles SVCall exception.
- * @param  None
- * @retval None
- */
-//__attribute__ ((interrupt ("IRQ")))
-extern "C" void SVC_Handler (void) {}
-
-/**
- * @brief  This function handles Debug Monitor exception.
- * @param  None
- * @retval None
- */
-//__attribute__ ((interrupt ("IRQ")))
-extern "C" void DebugMon_Handler (void) {}
-
-/**
- * @brief  This function handles PendSVC exception.
- * @param  None
- * @retval None
- */
-//__attribute__ ((interrupt ("IRQ")))
-extern "C" void PendSV_Handler (void) {}
-
-/**
- * @brief  This function handles SysTick Handler.
- * @param  None
- * @retval None
- */
-//__attribute__ ((interrupt ("IRQ")))
-extern "C" void SysTick_Handler (void)
-{
-        HAL_IncTick ();
-
-        /* Call user callback */
-        HAL_SYSTICK_IRQHandler ();
-}
-#endif
