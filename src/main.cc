@@ -10,15 +10,21 @@
 #include "ErrorHandler.h"
 #include "Gpio.h"
 #include "Hal.h"
+#include "HardwareTimer.h"
 #include "I2c.h"
 #include "Nrf24L01P.h"
 #include "Pwm.h"
 #include "Spi.h"
 #include "Timer.h"
 #include "Usart.h"
+#include "actuators/BipolarStepper.h"
+#include "actuators/BrushedMotor.h"
 #include "imu/mpu6050/Mpu6050.h"
 #include <cerrno>
 #include <cmath>
+//#include <cstring>
+
+// TIM_HandleTypeDef htim;
 
 #ifndef M_PI
 #define M_PI 3.14159265358979323846
@@ -30,6 +36,18 @@ const uint8_t CX10_ADDRESS[] = { 0xcc, 0xcc, 0xcc, 0xcc, 0xcc };
 
 /*****************************************************************************/
 
+// extern "C" void TIM3_IRQHandler ()
+//{
+//        TIM_TypeDef *instance = htim.Instance;
+
+//        if (instance->DIER & TIM_IT_UPDATE && instance->SR & TIM_FLAG_UPDATE) {
+//                // Clears the interrupt
+//                instance->SR = ~TIM_IT_UPDATE;
+
+//                Debug::singleton ()->print ("%\n");
+//        }
+//}
+
 static void SystemClock_Config (void);
 
 namespace __gnu_cxx {
@@ -39,41 +57,6 @@ void __verbose_terminate_handler ()
                 ;
 }
 } // namespace __gnu_cxx
-
-/*****************************************************************************/
-
-class Motor {
-public:
-        Motor (Gpio *dir, Pwm *p, Pwm::Channel channel, uint32_t fullScale)
-            : direction (dir), pwm (p), channel (channel), factor (fullScale / 100), fullScale (fullScale)
-        {
-        }
-
-        /**
-         * @brief setSpeed
-         * @param speed from -100 to 100
-         */
-        void setSpeed (int32_t speed);
-
-private:
-        Gpio *direction;
-        Pwm *pwm;
-        Pwm::Channel channel;
-        uint32_t factor;
-        uint32_t fullScale;
-};
-
-/*****************************************************************************/
-
-void Motor::setSpeed (int32_t speed)
-{
-        int newDuty = speed * factor;
-        newDuty = std::min<int> (std::abs (newDuty), fullScale);
-        pwm->setDuty (channel, newDuty);
-        direction->set (speed > 0);
-}
-
-/*****************************************************************************/
 
 //#define SAMPLEFILTER_TAP_NUM 5
 
@@ -210,23 +193,69 @@ int main ()
         // 1kHz if I'm correct
         const int PWM_PERIOD = 2000;
 
-        Pwm pwmLeft (TIM1, (uint32_t) (HAL_RCC_GetHCLKFreq () / 2000000) - 1, PWM_PERIOD - 1);
-        pwmLeft.enableChannels (Pwm::CHANNEL2);
-        Gpio directionLeftPin (GPIOE, GPIO_PIN_9);
-        Gpio pwmLeftPin (GPIOE, GPIO_PIN_11, GPIO_MODE_AF_PP, GPIO_NOPULL, GPIO_SPEED_FREQ_LOW, GPIO_AF1_TIM1);
-        Motor motorLeft (&directionLeftPin, &pwmLeft, Pwm::CHANNEL2, PWM_PERIOD);
+        //        Pwm pwmLeft (TIM1, (uint32_t) (HAL_RCC_GetHCLKFreq () / 2000000) - 1, PWM_PERIOD - 1);
+        //        pwmLeft.enableChannels (Pwm::CHANNEL2);
+        //        Gpio directionLeftPin (GPIOE, GPIO_PIN_9);
+        //        Gpio pwmLeftPin (GPIOE, GPIO_PIN_11, GPIO_MODE_AF_PP, GPIO_NOPULL, GPIO_SPEED_FREQ_LOW, GPIO_AF1_TIM1);
+        //        BrushedMotor motorLeft (&directionLeftPin, &pwmLeft, Pwm::CHANNEL2, PWM_PERIOD);
 
-        Pwm pwmRight (TIM3, (uint32_t) (HAL_RCC_GetHCLKFreq () / 2000000) - 1, PWM_PERIOD - 1);
-        pwmRight.enableChannels (Pwm::CHANNEL3);
-        Gpio directionRightPin (GPIOB, GPIO_PIN_1);
-        Gpio pwmRightPin (GPIOB, GPIO_PIN_0, GPIO_MODE_AF_PP, GPIO_NOPULL, GPIO_SPEED_FREQ_LOW, GPIO_AF2_TIM3);
-        Motor motorRight (&directionRightPin, &pwmRight, Pwm::CHANNEL3, PWM_PERIOD);
+        //        Pwm pwmRight (TIM3, (uint32_t) (HAL_RCC_GetHCLKFreq () / 2000000) - 1, PWM_PERIOD - 1);
+        //        pwmRight.enableChannels (Pwm::CHANNEL3);
+        //        Gpio directionRightPin (GPIOB, GPIO_PIN_1);
+        //        Gpio pwmRightPin (GPIOB, GPIO_PIN_0, GPIO_MODE_AF_PP, GPIO_NOPULL, GPIO_SPEED_FREQ_LOW, GPIO_AF2_TIM3);
+        //        BrushedMotor motorRight (&directionRightPin, &pwmRight, Pwm::CHANNEL3, PWM_PERIOD);
 
-        pwmLeft.setDuty (Pwm::CHANNEL1, 1);
-        pwmRight.setDuty (Pwm::CHANNEL3, 1);
+        //        motorLeft.setSpeed (0);
+        //        motorRight.setSpeed (0);
 
-        motorLeft.setSpeed (0);
-        motorRight.setSpeed (0);
+        //        memset (&htim, 0, sizeof (htim));
+        //        htim.Instance = TIM3;
+        //        htim.Init.Prescaler = 48000 - 1;
+        //        htim.Init.Period = 1000 - 1;
+        //        htim.Init.CounterMode = TIM_COUNTERMODE_UP;
+        //        htim.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
+        //        htim.Init.RepetitionCounter = 0;
+
+        //        HAL_NVIC_SetPriority (TIM3_IRQn, 3, 0);
+        //        HAL_NVIC_EnableIRQ (TIM3_IRQn);
+
+        //        __HAL_RCC_TIM3_CLK_ENABLE ();
+
+        //        if (HAL_TIM_Base_Init (&htim) != HAL_OK) {
+        //                Error_Handler ();
+        //        }
+
+        //        if (HAL_TIM_Base_Start_IT (&htim) != HAL_OK) {
+        //                Error_Handler ();
+        //        }
+
+#if 1
+        HardwareTimer tim3 (TIM3, 84 - 1, 100 - 1);
+        //        //        tim3.enableChannels (Pwm::CHANNEL1);
+        //        OutputCompareChannel oc;
+        //        //        oc.setOnIrq ([&] { d->print (".\n"); });
+        //        tim3.onUpdate = [&] { motorLeft.step (1); };
+        //        tim3.setChannel (0, &oc);
+        HAL_NVIC_SetPriority (TIM3_IRQn, 3, 0);
+        HAL_NVIC_EnableIRQ (TIM3_IRQn);
+//        tim3.setDuty (HardwareTimer::CHANNEL1, 2);
+//        tim3.setDuty(HardwareTimer::CHANNEL2, 20000);
+//        tim3.setDuty(HardwareTimer::CHANNEL3, 20000);
+//        tim3.setDuty(HardwareTimer::CHANNEL4, 20000);
+#endif
+
+        Gpio bPhasePin (GPIOE, GPIO_PIN_9);
+        Gpio bEnablePin (GPIOE, GPIO_PIN_11);
+        Gpio aPhasePin (GPIOB, GPIO_PIN_1);
+        Gpio aEnablePin (GPIOB, GPIO_PIN_0);
+
+        BipolarStepper motorLeft (&aPhasePin, &aEnablePin, &bPhasePin, &bEnablePin, 200);
+        tim3.onUpdate = [&motorLeft] { motorLeft.timeStep (); };
+        // tim3.onUpdate = [&] { d->print ("."); };
+
+        //        motorLeft.power (true);
+        //        motorLeft.step (-999999);
+        //        motorLeft.power (true);
 
         HAL_Delay (100);
 
@@ -361,7 +390,7 @@ int main ()
         kd = 0.7;
         float correction = 0.12;
 
-        nrfRx.setOnData ([d, &nrfRx, &bufRx, &kp, &ki, &kd, &correction, &integral, &prevError, &motorLeft, &motorRight] {
+        nrfRx.setOnData ([d, &nrfRx, &bufRx, &kp, &ki, &kd, &correction, &integral, &prevError, &motorLeft /*, &motorRight*/] {
                 //                d->print ("IRQ: ");
                 uint8_t *out = nrfRx.receive (bufRx, PACKET_SIZE);
                 //                for (int i = 0; i < PACKET_SIZE; ++i) {
@@ -397,9 +426,14 @@ int main ()
                         break;
 
                 case 'm':
+                        //                        motorLeft.setSpeed (param);
+                        //                        motorRight.setSpeed (param);
+                        motorLeft.power (true);
                         motorLeft.setSpeed (param);
-                        motorRight.setSpeed (param);
 
+                        if (param == 0) {
+                                motorLeft.power (false);
+                        }
                         break;
 
                 default:
@@ -415,6 +449,9 @@ int main ()
 
         timeControl.start (1000);
         int timeCnt = 0;
+
+        while (true) {
+        }
 
         while (1) {
                 if (readout.isExpired ()) {
@@ -463,7 +500,7 @@ int main ()
                         prevError = error;
 
                         motorLeft.setSpeed (out);
-                        motorRight.setSpeed (out);
+                        //                        motorRight.setSpeed (out);
 
                         // End
                         //                        printf ("%d, %d, %d, %d, %d\n", int(angleAccel * 1000), gy, gz, int(angle * 1000), int(out * 100));
