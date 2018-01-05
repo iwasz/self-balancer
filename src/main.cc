@@ -12,7 +12,6 @@
 #include "Hal.h"
 #include "HardwareTimer.h"
 #include "I2c.h"
-#include "Nrf24L01P.h"
 #include "Pwm.h"
 #include "Spi.h"
 #include "Timer.h"
@@ -20,6 +19,8 @@
 #include "actuators/BipolarStepper.h"
 #include "actuators/BrushedMotor.h"
 #include "imu/mpu6050/Mpu6050.h"
+#include "rf/Nrf24L01P.h"
+#include "rf/SymaX5HWRxProtocol.h"
 #include <cerrno>
 #include <cmath>
 //#include <cstring>
@@ -149,6 +150,10 @@ int main ()
         spiRx.setNssPin (&spiRxGpiosNss);
 
         Nrf24L01P nrfRx (&spiRx, &ceRx, &irqRxNrf);
+
+#define SYMA_RX
+
+#ifndef SYMA_RX
         nrfRx.setConfig (Nrf24L01P::MASK_NO_IRQ, true, Nrf24L01P::CRC_LEN_2);
         nrfRx.setTxAddress (CX10_ADDRESS, 5);
         nrfRx.setRxAddress (0, CX10_ADDRESS, 5);
@@ -160,10 +165,38 @@ int main ()
         nrfRx.setPayloadLength (0, PACKET_SIZE);
         nrfRx.setDataRate (Nrf24L01P::MBPS_1, Nrf24L01P::DBM_0);
 
-        uint8_t bufRx[PACKET_SIZE] = {
+        uint8_t bufRx[PACKET_SIZE + 1] = {
                 1,
         };
+#else
+        uint8_t bufRx[SymaX5HWRxProtocol::RX_PACKET_SIZE + 1] = {
+                0x00,
+        };
 
+        /*---------------------------------------------------------------------------*/
+
+        nrfRx.setConfig (Nrf24L01P::MASK_NO_IRQ, true, Nrf24L01P::CRC_LEN_2);
+        nrfRx.setTxAddress (SymaX5HWRxProtocol::BIND_ADDR, 5);
+        nrfRx.setRxAddress (0, SymaX5HWRxProtocol::BIND_ADDR, 5);
+        nrfRx.setAutoAck (0);
+        nrfRx.setEnableDataPipe (Nrf24L01P::ERX_P0);
+        nrfRx.setAdressWidth (Nrf24L01P::WIDTH_5);
+        nrfRx.setChannel (SymaX5HWRxProtocol::BIND_CHANNELS[0]);
+        nrfRx.setAutoRetransmit (Nrf24L01P::WAIT_4000, Nrf24L01P::RETRANSMIT_15);
+        nrfRx.setPayloadLength (0, SymaX5HWRxProtocol::RX_PACKET_SIZE);
+        nrfRx.setDataRate (Nrf24L01P::KBPS_250, Nrf24L01P::DBM_0);
+
+        HAL_Delay (100);
+        nrfRx.powerUp (Nrf24L01P::RX);
+        HAL_Delay (100);
+
+        SymaX5HWRxProtocol syma (&nrfRx);
+
+        nrfRx.setOnData ([&syma, &nrfRx, &bufRx] {
+                uint8_t *out = nrfRx.receive (bufRx, SymaX5HWRxProtocol::RX_PACKET_SIZE);
+                syma.onPacket (out);
+        });
+#endif
         /*+-------------------------------------------------------------------------+*/
         /*| MPU6050                                                                 |*/
         /*+-------------------------------------------------------------------------+*/
@@ -244,13 +277,28 @@ int main ()
 //        tim3.setDuty(HardwareTimer::CHANNEL4, 20000);
 #endif
 
-        Gpio bPhasePin (GPIOE, GPIO_PIN_9);
-        Gpio bEnablePin (GPIOE, GPIO_PIN_11);
-        Gpio aPhasePin (GPIOB, GPIO_PIN_1);
-        Gpio aEnablePin (GPIOB, GPIO_PIN_0);
+        Gpio bPhasePinL (GPIOE, GPIO_PIN_9);
+        Gpio bEnablePinL (GPIOE, GPIO_PIN_11);
+        Gpio aPhasePinL (GPIOB, GPIO_PIN_1);
+        Gpio aEnablePinL (GPIOB, GPIO_PIN_0);
 
-        BipolarStepper motorLeft (&aPhasePin, &aEnablePin, &bPhasePin, &bEnablePin, 200);
-        tim3.onUpdate = [&motorLeft] { motorLeft.timeStep (); };
+        BipolarStepper motorLeft (&aPhasePinL, &aEnablePinL, &bPhasePinL, &bEnablePinL, 400);
+
+        Gpio bEnablePinR (GPIOA, GPIO_PIN_2);
+        Gpio bPhasePinR (GPIOA, GPIO_PIN_1);
+        Gpio aEnablePinR (GPIOC, GPIO_PIN_2);
+        Gpio aPhasePinR (GPIOC, GPIO_PIN_1);
+
+        BipolarStepper motorRight (&aPhasePinR, &aEnablePinR, &bPhasePinR, &bEnablePinR, 400);
+
+        tim3.onUpdate = [&motorLeft, &motorRight] {
+                motorLeft.timeStep ();
+                motorRight.timeStep ();
+        };
+
+        motorLeft.power (true);
+        motorRight.power (true);
+
         // tim3.onUpdate = [&] { d->print ("."); };
 
         //        motorLeft.power (true);
@@ -390,6 +438,7 @@ int main ()
         kd = 0.7;
         float correction = 0.12;
 
+#ifndef SYMA_RX
         nrfRx.setOnData ([d, &nrfRx, &bufRx, &kp, &ki, &kd, &correction, &integral, &prevError, &motorLeft /*, &motorRight*/] {
                 //                d->print ("IRQ: ");
                 uint8_t *out = nrfRx.receive (bufRx, PACKET_SIZE);
@@ -444,6 +493,20 @@ int main ()
                 integral = 0;
                 prevError = 0;
         });
+#else
+
+        syma.onRxValues = [&motorLeft, &motorRight, &d](SymaX5HWRxProtocol::RxValues const &v) {
+                //                motorLeft.power (true);
+                motorLeft.setSpeed (v.throttle);
+                motorRight.setSpeed (v.throttle);
+                d->print (v.throttle);
+                d->print ("\n");
+
+                //                if (v.throttle == 0) {
+                //                        motorLeft.power (false);
+                //                }
+        };
+#endif
 
         nrfRx.powerUp (Nrf24L01P::RX);
 
