@@ -151,7 +151,7 @@ int main ()
 
         Nrf24L01P nrfRx (&spiRx, &ceRx, &irqRxNrf);
 
-#define SYMA_RX
+        // #define SYMA_RX
 
 #ifndef SYMA_RX
         nrfRx.setConfig (Nrf24L01P::MASK_NO_IRQ, true, Nrf24L01P::CRC_LEN_2);
@@ -224,45 +224,28 @@ int main ()
         /*+-------------------------------------------------------------------------+*/
 
         // 1kHz if I'm correct
-        const int PWM_PERIOD = 2000;
+        const int PWM_PERIOD = 200;
 
-        //        Pwm pwmLeft (TIM1, (uint32_t) (HAL_RCC_GetHCLKFreq () / 2000000) - 1, PWM_PERIOD - 1);
-        //        pwmLeft.enableChannels (Pwm::CHANNEL2);
-        //        Gpio directionLeftPin (GPIOE, GPIO_PIN_9);
-        //        Gpio pwmLeftPin (GPIOE, GPIO_PIN_11, GPIO_MODE_AF_PP, GPIO_NOPULL, GPIO_SPEED_FREQ_LOW, GPIO_AF1_TIM1);
-        //        BrushedMotor motorLeft (&directionLeftPin, &pwmLeft, Pwm::CHANNEL2, PWM_PERIOD);
+        Pwm pwmLeft (TIM1, 42 - 1, PWM_PERIOD - 1);
+        pwmLeft.enableChannels (Pwm::CHANNEL2);
+        Gpio directionLeftPin (GPIOE, GPIO_PIN_9);
+        Gpio pwmLeftPin (GPIOE, GPIO_PIN_11, GPIO_MODE_AF_PP, GPIO_NOPULL, GPIO_SPEED_FREQ_LOW, GPIO_AF1_TIM1);
+        BrushedMotor motorLeft (&directionLeftPin, &pwmLeft, Pwm::CHANNEL2, PWM_PERIOD);
+        motorLeft.setPwmInvert (true);
+        motorLeft.setDirectionInvert (true);
 
-        //        Pwm pwmRight (TIM3, (uint32_t) (HAL_RCC_GetHCLKFreq () / 2000000) - 1, PWM_PERIOD - 1);
-        //        pwmRight.enableChannels (Pwm::CHANNEL3);
-        //        Gpio directionRightPin (GPIOB, GPIO_PIN_1);
-        //        Gpio pwmRightPin (GPIOB, GPIO_PIN_0, GPIO_MODE_AF_PP, GPIO_NOPULL, GPIO_SPEED_FREQ_LOW, GPIO_AF2_TIM3);
-        //        BrushedMotor motorRight (&directionRightPin, &pwmRight, Pwm::CHANNEL3, PWM_PERIOD);
+        // TIM3 -> APB1 (42MHz) -> but CK_INT = 84MHz
+        Pwm pwmRight (TIM3, 21 - 1, PWM_PERIOD - 1);
+        pwmRight.enableChannels (Pwm::CHANNEL3);
+        Gpio directionRightPin (GPIOB, GPIO_PIN_1);
+        Gpio pwmRightPin (GPIOB, GPIO_PIN_0, GPIO_MODE_AF_PP, GPIO_NOPULL, GPIO_SPEED_FREQ_LOW, GPIO_AF2_TIM3);
+        BrushedMotor motorRight (&directionRightPin, &pwmRight, Pwm::CHANNEL3, PWM_PERIOD);
+        motorRight.setPwmInvert (true);
 
-        //        motorLeft.setSpeed (0);
-        //        motorRight.setSpeed (0);
+        motorLeft.setSpeed (0);
+        motorRight.setSpeed (0);
 
-        //        memset (&htim, 0, sizeof (htim));
-        //        htim.Instance = TIM3;
-        //        htim.Init.Prescaler = 48000 - 1;
-        //        htim.Init.Period = 1000 - 1;
-        //        htim.Init.CounterMode = TIM_COUNTERMODE_UP;
-        //        htim.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
-        //        htim.Init.RepetitionCounter = 0;
-
-        //        HAL_NVIC_SetPriority (TIM3_IRQn, 3, 0);
-        //        HAL_NVIC_EnableIRQ (TIM3_IRQn);
-
-        //        __HAL_RCC_TIM3_CLK_ENABLE ();
-
-        //        if (HAL_TIM_Base_Init (&htim) != HAL_OK) {
-        //                Error_Handler ();
-        //        }
-
-        //        if (HAL_TIM_Base_Start_IT (&htim) != HAL_OK) {
-        //                Error_Handler ();
-        //        }
-
-#if 1
+#if 0
         HardwareTimer tim3 (TIM3, 84 - 1, 100 - 1);
         //        //        tim3.enableChannels (Pwm::CHANNEL1);
         //        OutputCompareChannel oc;
@@ -275,35 +258,35 @@ int main ()
 //        tim3.setDuty(HardwareTimer::CHANNEL2, 20000);
 //        tim3.setDuty(HardwareTimer::CHANNEL3, 20000);
 //        tim3.setDuty(HardwareTimer::CHANNEL4, 20000);
-#endif
 
-        Gpio bPhasePinL (GPIOE, GPIO_PIN_9);
-        Gpio bEnablePinL (GPIOE, GPIO_PIN_11);
-        Gpio aPhasePinL (GPIOB, GPIO_PIN_1);
-        Gpio aEnablePinL (GPIOB, GPIO_PIN_0);
+        //        Gpio bPhasePinL (GPIOE, GPIO_PIN_9);
+        //        Gpio bEnablePinL (GPIOE, GPIO_PIN_11);
+        //        Gpio aPhasePinL (GPIOB, GPIO_PIN_1);
+        //        Gpio aEnablePinL (GPIOB, GPIO_PIN_0);
 
-        BipolarStepper motorLeft (&aPhasePinL, &aEnablePinL, &bPhasePinL, &bEnablePinL, 400);
+        //        BipolarStepper motorLeft (&aPhasePinL, &aEnablePinL, &bPhasePinL, &bEnablePinL, 400);
 
-        Gpio bEnablePinR (GPIOA, GPIO_PIN_2);
-        Gpio bPhasePinR (GPIOA, GPIO_PIN_1);
-        Gpio aEnablePinR (GPIOC, GPIO_PIN_2);
-        Gpio aPhasePinR (GPIOC, GPIO_PIN_1);
+        //        Gpio bEnablePinR (GPIOA, GPIO_PIN_2);
+        //        Gpio bPhasePinR (GPIOA, GPIO_PIN_1);
+        //        Gpio aEnablePinR (GPIOC, GPIO_PIN_2);
+        //        Gpio aPhasePinR (GPIOC, GPIO_PIN_1);
 
-        BipolarStepper motorRight (&aPhasePinR, &aEnablePinR, &bPhasePinR, &bEnablePinR, 400);
+        //        BipolarStepper motorRight (&aPhasePinR, &aEnablePinR, &bPhasePinR, &bEnablePinR, 400);
 
-        tim3.onUpdate = [&motorLeft, &motorRight] {
-                motorLeft.timeStep ();
-                motorRight.timeStep ();
-        };
+        //        tim3.onUpdate = [&motorLeft, &motorRight] {
+        //                motorLeft.timeStep ();
+        //                motorRight.timeStep ();
+        //        };
 
-        motorLeft.power (true);
-        motorRight.power (true);
+        //        motorLeft.power (true);
+        //        motorRight.power (true);
 
         // tim3.onUpdate = [&] { d->print ("."); };
 
         //        motorLeft.power (true);
         //        motorLeft.step (-999999);
         //        motorLeft.power (true);
+#endif
 
         HAL_Delay (100);
 
@@ -433,13 +416,13 @@ int main ()
         float error, prevError, integral, derivative;
         integral = derivative = prevError = 0;
         float kp, ki, kd, out;
-        kp = 90;
-        ki = 0.7;
-        kd = 0.7;
+        kp = 0;
+        ki = 0;
+        kd = 0;
         float correction = 0.12;
 
 #ifndef SYMA_RX
-        nrfRx.setOnData ([d, &nrfRx, &bufRx, &kp, &ki, &kd, &correction, &integral, &prevError, &motorLeft /*, &motorRight*/] {
+        nrfRx.setOnData ([d, &nrfRx, &bufRx, &kp, &ki, &kd, &correction, &integral, &prevError, &motorLeft, &motorRight] {
                 //                d->print ("IRQ: ");
                 uint8_t *out = nrfRx.receive (bufRx, PACKET_SIZE);
                 //                for (int i = 0; i < PACKET_SIZE; ++i) {
@@ -475,14 +458,14 @@ int main ()
                         break;
 
                 case 'm':
-                        //                        motorLeft.setSpeed (param);
-                        //                        motorRight.setSpeed (param);
-                        motorLeft.power (true);
                         motorLeft.setSpeed (param);
+                        motorRight.setSpeed (param);
+                        //                        motorLeft.power (true);
+                        //                        motorLeft.setSpeed (param);
 
-                        if (param == 0) {
-                                motorLeft.power (false);
-                        }
+                        //                        if (param == 0) {
+                        //                                motorLeft.power (false);
+                        //                        }
                         break;
 
                 default:
@@ -513,8 +496,8 @@ int main ()
         timeControl.start (1000);
         int timeCnt = 0;
 
-        while (true) {
-        }
+//        while (true) {
+//        }
 
         while (1) {
                 if (readout.isExpired ()) {
@@ -563,7 +546,7 @@ int main ()
                         prevError = error;
 
                         motorLeft.setSpeed (out);
-                        //                        motorRight.setSpeed (out);
+                        motorRight.setSpeed (out);
 
                         // End
                         //                        printf ("%d, %d, %d, %d, %d\n", int(angleAccel * 1000), gy, gz, int(angle * 1000), int(out * 100));
