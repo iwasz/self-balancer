@@ -30,6 +30,7 @@
 #define M_PI 3.14159265358979323846
 #endif
 
+const uint8_t ADDRESS_P1[] = { 0xc2, 0xc2, 0xc2, 0xc2, 0xc2 };
 const uint8_t CX10_ADDRESS[] = { 0xcc, 0xcc, 0xcc, 0xcc, 0xcc };
 #define PACKET_SIZE 5
 #define CHANNEL 100
@@ -86,15 +87,18 @@ int main ()
 #ifndef SYMA_RX
         Nrf24L01P nrfTx (&spiTx, &ceTx, &irqTxNrf, 50);
         nrfTx.setConfig (Nrf24L01P::MASK_TX_DS, true, Nrf24L01P::CRC_LEN_2);
-        nrfTx.setTxAddress (CX10_ADDRESS, 5);
-        nrfTx.setRxAddress (0, CX10_ADDRESS, 5);
-        nrfTx.setAutoAck (Nrf24L01P::ENAA_P0);
-        nrfTx.setEnableDataPipe (Nrf24L01P::ERX_P0);
+        nrfTx.setTxAddress (ADDRESS_P1, 5);
+        nrfTx.setRxAddress (0, ADDRESS_P1, 5);
+        nrfTx.setAutoAck (Nrf24L01P::ENAA_P0 | Nrf24L01P::ENAA_P1);
+        nrfTx.setEnableDataPipe (Nrf24L01P::ERX_P0 | Nrf24L01P::ERX_P1);
         nrfTx.setAdressWidth (Nrf24L01P::WIDTH_5);
         nrfTx.setChannel (CHANNEL);
         nrfTx.setAutoRetransmit (Nrf24L01P::WAIT_1000_US, Nrf24L01P::RETRANSMIT_15);
-        nrfTx.setPayloadLength (0, PACKET_SIZE);
+        //        nrfTx.setPayloadLength (0, PACKET_SIZE);
+        //        nrfTx.setPayloadLength (1, PACKET_SIZE);
         nrfTx.setDataRate (Nrf24L01P::MBPS_1, Nrf24L01P::DBM_0);
+        nrfTx.setEnableDynamicPayload (Nrf24L01P::DPL_P0 | Nrf24L01P::DPL_P0);
+        nrfTx.setFeature (Nrf24L01P::EN_DPL | Nrf24L01P::EN_ACK_PAY);
         HAL_Delay (100);
         nrfTx.powerUp (Nrf24L01P::TX);
         HAL_Delay (100);
@@ -111,7 +115,7 @@ int main ()
                         d->print ("\n");
                 }
 
-                virtual void onTx () {}
+                virtual void onTx () { /*Debug::singleton ()->print ("nrfTx : TX_DS\n");*/ }
 
                 virtual void onMaxRt ()
                 {
@@ -124,61 +128,75 @@ int main ()
 
         /*---------------------------------------------------------------------------*/
 
-        //        Gpio ceRx (GPIOE, GPIO_PIN_15);
-        //        ceRx.set (false);
+        Gpio ceRx (GPIOE, GPIO_PIN_15);
+        ceRx.set (false);
 
-        //        Gpio irqRxNrf (GPIOB, GPIO_PIN_11, GPIO_MODE_IT_FALLING, GPIO_PULLUP);
-        //        HAL_NVIC_SetPriority (EXTI15_10_IRQn, 3, 0);
-        //        HAL_NVIC_EnableIRQ (EXTI15_10_IRQn);
+        Gpio irqRxNrf (GPIOB, GPIO_PIN_11, GPIO_MODE_IT_FALLING, GPIO_PULLUP);
+        HAL_NVIC_SetPriority (EXTI15_10_IRQn, 3, 0);
+        HAL_NVIC_EnableIRQ (EXTI15_10_IRQn);
 
-        //        Gpio spiRxGpiosNss (GPIOB, GPIO_PIN_12, GPIO_MODE_OUTPUT_OD, GPIO_PULLUP);
-        //        /// PB13 = SCK, PB14 = MISO, PB15 = MOSI
-        //        Gpio spiRxGpiosMisoMosiSck (GPIOB, GPIO_PIN_13 | GPIO_PIN_14 | GPIO_PIN_15, GPIO_MODE_AF_PP, GPIO_NOPULL, GPIO_SPEED_FREQ_HIGH,
-        //                                    GPIO_AF5_SPI2);
-        //        Spi spiRx (SPI2);
-        //        spiRx.setNssGpio (&spiRxGpiosNss);
+        Gpio spiRxGpiosNss (GPIOB, GPIO_PIN_12, GPIO_MODE_OUTPUT_OD, GPIO_PULLUP);
+        /// PB13 = SCK, PB14 = MISO, PB15 = MOSI
+        Gpio spiRxGpiosMisoMosiSck (GPIOB, GPIO_PIN_13 | GPIO_PIN_14 | GPIO_PIN_15, GPIO_MODE_AF_PP, GPIO_NOPULL, GPIO_SPEED_FREQ_HIGH,
+                                    GPIO_AF5_SPI2);
+        Spi spiRx (SPI2);
+        spiRx.setNssGpio (&spiRxGpiosNss);
 
-        //        Nrf24L01P nrfRx (&spiRx, &ceRx, &irqRxNrf, 50);
-        //        nrfRx.setConfig (Nrf24L01P::MASK_TX_DS, true, Nrf24L01P::CRC_LEN_2);
+        Nrf24L01P nrfRx (&spiRx, &ceRx, &irqRxNrf, 50);
+        nrfRx.setConfig (Nrf24L01P::MASK_TX_DS, true, Nrf24L01P::CRC_LEN_2);
         //        nrfRx.setTxAddress (CX10_ADDRESS, 5);
         //        nrfRx.setRxAddress (0, CX10_ADDRESS, 5);
-        //        nrfRx.setEnableDataPipe (Nrf24L01P::ERX_P0);
-        //        nrfRx.setAdressWidth (Nrf24L01P::WIDTH_5);
-        //        nrfRx.setChannel (CHANNEL);
+        nrfRx.setAutoAck (Nrf24L01P::ENAA_P0 | Nrf24L01P::ENAA_P1);
+        nrfRx.setEnableDataPipe (Nrf24L01P::ERX_P0 | Nrf24L01P::ERX_P1);
+        nrfRx.setAdressWidth (Nrf24L01P::WIDTH_5);
+        nrfRx.setChannel (CHANNEL);
         //        nrfRx.setPayloadLength (0, PACKET_SIZE);
-        //        nrfRx.setDataRate (Nrf24L01P::MBPS_1, Nrf24L01P::DBM_0);
-        //        HAL_Delay (100);
-        //        nrfRx.powerUp (Nrf24L01P::RX);
-        //        HAL_Delay (100);
+        //        nrfRx.setPayloadLength (1, PACKET_SIZE);
+        nrfRx.setDataRate (Nrf24L01P::MBPS_1, Nrf24L01P::DBM_0);
+        nrfRx.setEnableDynamicPayload (Nrf24L01P::DPL_P0 | Nrf24L01P::DPL_P1);
+        nrfRx.setFeature (Nrf24L01P::EN_DPL | Nrf24L01P::EN_ACK_PAY);
+        HAL_Delay (100);
+        nrfRx.powerUp (Nrf24L01P::RX);
+        HAL_Delay (100);
 
-        //        class RxCallback : public Nrf24L01PCallback {
-        //        public:
-        //                virtual ~RxCallback () {}
+        class RxCallback : public Nrf24L01PCallback {
+        public:
+                virtual ~RxCallback () {}
 
-        //                virtual void onRx (uint8_t *data, size_t len)
-        //                {
-        //                        Debug *d = Debug::singleton ();
-        //                        // d->print ("nrfRx received : ");
-        //                        d->printArray (data, len);
-        //                        d->print ("\n");
-        //                }
+                virtual void onRx (uint8_t *data, size_t len)
+                {
+                        Debug *d = Debug::singleton ();
+                        d->print ("nrfRx received : ");
+                        d->printArray (data, len);
+                        d->print ("\n");
+                }
 
-        //                virtual void onTx () {}
+                virtual void onTx () { /*Debug::singleton ()->print ("nrfRx : TX_DS\n");*/ }
 
-        //                virtual void onMaxRt ()
-        //                {
-        //                        Debug *d = Debug::singleton ();
-        //                        d->print ("nrfRx MAX_RT");
-        //                }
-        //        } rxCallback;
+                virtual void onMaxRt ()
+                {
+                        Debug *d = Debug::singleton ();
+                        d->print ("nrfRx MAX_RT");
+                }
+        } rxCallback;
 
-        //        nrfRx.setCallback (&rxCallback);
+        nrfRx.setCallback (&rxCallback);
 
         uint8_t bufTx[PACKET_SIZE] = { 1, 2, 3, 4, 5 };
+        uint8_t ack[PACKET_SIZE] = { 7, 8, 9, 10, 11 };
+
+        Timer tim;
         while (1) {
-                nrfTx.transmit (bufTx, PACKET_SIZE);
-                ++(bufTx[4]);
-                HAL_Delay (500);
+
+                if (tim.isExpired ()) {
+                        nrfRx.setAckPayload (1, ack, PACKET_SIZE);
+                        ++(ack[4]);
+
+                        nrfTx.transmit (bufTx, PACKET_SIZE);
+                        ++(bufTx[4]);
+
+                        tim.start (500);
+                }
         }
 
 #else
