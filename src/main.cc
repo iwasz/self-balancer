@@ -12,6 +12,7 @@
 #include "Hal.h"
 #include "HardwareTimer.h"
 #include "I2c.h"
+#include "MadgwickAHRS.h"
 #include "Pwm.h"
 #include "Spi.h"
 #include "Timer.h"
@@ -23,9 +24,7 @@
 #include "rf/SymaX5HWRxProtocol.h"
 #include <cerrno>
 #include <cmath>
-//#include <cstring>
-
-// TIM_HandleTypeDef htim;
+#include <cstring>
 
 #ifndef M_PI
 #define M_PI 3.14159265358979323846
@@ -37,18 +36,6 @@ const uint8_t CX10_ADDRESS[] = { 0xcc, 0xcc, 0xcc, 0xcc, 0xcc };
 
 /*****************************************************************************/
 
-// extern "C" void TIM3_IRQHandler ()
-//{
-//        TIM_TypeDef *instance = htim.Instance;
-
-//        if (instance->DIER & TIM_IT_UPDATE && instance->SR & TIM_FLAG_UPDATE) {
-//                // Clears the interrupt
-//                instance->SR = ~TIM_IT_UPDATE;
-
-//                Debug::singleton ()->print ("%\n");
-//        }
-//}
-
 static void SystemClock_Config (void);
 
 namespace __gnu_cxx {
@@ -58,62 +45,6 @@ void __verbose_terminate_handler ()
                 ;
 }
 } // namespace __gnu_cxx
-
-//#define SAMPLEFILTER_TAP_NUM 5
-
-// static double filter_taps[SAMPLEFILTER_TAP_NUM]
-//        = { 0.02857983994169657,   -0.07328836181028245, 0.04512928732568175,   0.03422632401030237,  -0.034724262386629436, -0.05343090761376418,
-//            0.032914528649623416,  0.09880818246272206,  -0.034135422078843417, -0.3160339484471911,  0.5341936566511765,    -0.3160339484471911,
-//            -0.034135422078843417, 0.09880818246272206,  0.032914528649623416,  -0.05343090761376418, -0.034724262386629436, 0.03422632401030237,
-//            0.04512928732568175,   -0.07328836181028245, 0.02857983994169657 };
-
-// static double filter_taps[SAMPLEFILTER_TAP_NUM]
-//        = { -0.25, -0.25, -0.25, -0.25, 1 };
-
-static constexpr float filter_taps[] = {
-        0.2, 0.2, 0.2, 0.2, 0.2, 0.2, 0.2, 0.2, 0.2, 0.2, 0.2, 0.2, 0.2, 0.2, 0.2, 0.2, 0.2, 0.2, 0.2, 0.2,
-        0.2, 0.2, 0.2, 0.2, 0.2, 0.2, 0.2, 0.2, 0.2, 0.2, 0.2, 0.2, 0.2, 0.2, 0.2, 0.2, 0.2, 0.2, 0.2, 0.2,
-};
-
-template <typename FloatType, int num_coeffs, const FloatType *coeffs> class FirFilter {
-public:
-        FirFilter () : current_index_ (0)
-        {
-                for (int i = 0; i < num_coeffs; ++i) {
-                        history_[i] = 0.0;
-                }
-        }
-
-        void put (FloatType value)
-        {
-                history_[current_index_++] = value;
-
-                if (current_index_ == num_coeffs) {
-                        current_index_ = 0;
-                }
-        }
-
-        FloatType get ()
-        {
-                FloatType output = 0.0;
-                int index = current_index_;
-
-                for (int i = 0; i < num_coeffs; ++i) {
-                        if (index != 0) {
-                                --index;
-                        }
-                        else {
-                                index = num_coeffs - 1;
-                        }
-                        output += history_[index] * coeffs[i];
-                }
-                return output;
-        }
-
-private:
-        FloatType history_[num_coeffs];
-        int current_index_;
-};
 
 /*****************************************************************************/
 
@@ -136,44 +67,125 @@ int main ()
         /*| NRF24L01+                                                               |*/
         /*+-------------------------------------------------------------------------+*/
 
-        Gpio ceRx (GPIOD, GPIO_PIN_0);
-        ceRx.set (false);
+//        Gpio ceRx (GPIOD, GPIO_PIN_0);
+//        ceRx.set (false);
 
-        Gpio irqRxNrf (GPIOD, GPIO_PIN_1, GPIO_MODE_IT_FALLING, GPIO_PULLUP);
-        HAL_NVIC_SetPriority (EXTI1_IRQn, 3, 0);
-        HAL_NVIC_EnableIRQ (EXTI1_IRQn);
+//        Gpio irqRxNrf (GPIOD, GPIO_PIN_1, GPIO_MODE_IT_FALLING, GPIO_PULLUP);
+//        HAL_NVIC_SetPriority (EXTI1_IRQn, 3, 0);
+//        HAL_NVIC_EnableIRQ (EXTI1_IRQn);
 
-        Gpio spiRxGpiosNss (GPIOD, GPIO_PIN_2, GPIO_MODE_OUTPUT_OD, GPIO_PULLUP);
-        /// PB3 = SCK, PB4 = MISO, PB5 = MOSI
-        Gpio spiRxGpiosMisoMosiSck (GPIOB, GPIO_PIN_3 | GPIO_PIN_4 | GPIO_PIN_5, GPIO_MODE_AF_PP, GPIO_NOPULL, GPIO_SPEED_FREQ_HIGH, GPIO_AF5_SPI1);
-        Spi spiRx (SPI1);
-        spiRx.setNssPin (&spiRxGpiosNss);
+//        Gpio spiRxGpiosNss (GPIOD, GPIO_PIN_2, GPIO_MODE_OUTPUT_OD, GPIO_PULLUP);
+//        /// PB3 = SCK, PB4 = MISO, PB5 = MOSI
+//        Gpio spiRxGpiosMisoMosiSck (GPIOB, GPIO_PIN_3 | GPIO_PIN_4 | GPIO_PIN_5, GPIO_MODE_AF_PP, GPIO_NOPULL, GPIO_SPEED_FREQ_HIGH,
+//                                    GPIO_AF5_SPI1);
+//        Spi spiRx (SPI1);
+//        spiRx.setNssGpio (&spiRxGpiosNss);
 
-        Nrf24L01P nrfRx (&spiRx, &ceRx, &irqRxNrf);
-
-        // #define SYMA_RX
+        //#define SYMA_RX
 
 #ifndef SYMA_RX
-        nrfRx.setConfig (Nrf24L01P::MASK_NO_IRQ, true, Nrf24L01P::CRC_LEN_2);
+//        Nrf24L01P nrfTx (&spiRx, &ceRx, &irqRxNrf, 50);
+//        nrfTx.setConfig (Nrf24L01P::MASK_TX_DS, true, Nrf24L01P::CRC_LEN_2);
+//        nrfTx.setTxAddress (CX10_ADDRESS, 5);
+//        nrfTx.setRxAddress (0, CX10_ADDRESS, 5);
+//        nrfTx.setEnableDataPipe (Nrf24L01P::ERX_P0);
+//        nrfTx.setAdressWidth (Nrf24L01P::WIDTH_5);
+//        nrfTx.setChannel (CHANNEL);
+//        nrfTx.setPayloadLength (0, PACKET_SIZE);
+//        nrfTx.setDataRate (Nrf24L01P::MBPS_1, Nrf24L01P::DBM_0);
+//        HAL_Delay (100);
+//        nrfTx.powerUp (Nrf24L01P::TX);
+//        HAL_Delay (100);
+
+//        class TxCallback : public Nrf24L01PCallback {
+//        public:
+//                virtual ~TxCallback () {}
+
+//                virtual void onRx (uint8_t *data, size_t len)
+//                {
+//                        Debug *d = Debug::singleton ();
+//                        d->print ("nrfTx received : ");
+//                        d->printArray (data, len);
+//                        d->print ("\n");
+//                }
+
+//                virtual void onTx () {}
+
+//                virtual void onMaxRt ()
+//                {
+//                        Debug *d = Debug::singleton ();
+//                        d->print ("nrfTx MAX_RT! Unable to send packet!");
+//                }
+//        } txCallback;
+
+//        nrfTx.setCallback (&txCallback);
+
+        /*---------------------------------------------------------------------------*/
+
+        Gpio ceRx (GPIOE, GPIO_PIN_15);
+        ceRx.set (false);
+
+        Gpio irqRxNrf (GPIOB, GPIO_PIN_11, GPIO_MODE_IT_FALLING, GPIO_PULLUP);
+        HAL_NVIC_SetPriority (EXTI15_10_IRQn, 3, 0);
+        HAL_NVIC_EnableIRQ (EXTI15_10_IRQn);
+
+        Gpio spiRxGpiosNss (GPIOB, GPIO_PIN_12, GPIO_MODE_OUTPUT_OD, GPIO_PULLUP);
+        /// PB13 = SCK, PB14 = MISO, PB15 = MOSI
+        Gpio spiRxGpiosMisoMosiSck (GPIOB, GPIO_PIN_13 | GPIO_PIN_14 | GPIO_PIN_15, GPIO_MODE_AF_PP, GPIO_NOPULL, GPIO_SPEED_FREQ_HIGH,
+                                    GPIO_AF5_SPI2);
+        Spi spiRx (SPI2);
+        spiRx.setNssGpio (&spiRxGpiosNss);
+
+        Nrf24L01P nrfRx (&spiRx, &ceRx, &irqRxNrf, 50);
+        nrfRx.setConfig (Nrf24L01P::MASK_TX_DS, true, Nrf24L01P::CRC_LEN_2);
         nrfRx.setTxAddress (CX10_ADDRESS, 5);
         nrfRx.setRxAddress (0, CX10_ADDRESS, 5);
-        nrfRx.setAutoAck (Nrf24L01P::ENAA_P0);
         nrfRx.setEnableDataPipe (Nrf24L01P::ERX_P0);
         nrfRx.setAdressWidth (Nrf24L01P::WIDTH_5);
         nrfRx.setChannel (CHANNEL);
-        nrfRx.setAutoRetransmit (Nrf24L01P::WAIT_1000, Nrf24L01P::RETRANSMIT_15);
         nrfRx.setPayloadLength (0, PACKET_SIZE);
         nrfRx.setDataRate (Nrf24L01P::MBPS_1, Nrf24L01P::DBM_0);
+        HAL_Delay (100);
+        nrfRx.powerUp (Nrf24L01P::RX);
+        HAL_Delay (100);
 
-        uint8_t bufRx[PACKET_SIZE + 1] = {
-                1,
-        };
+        class RxCallback : public Nrf24L01PCallback {
+        public:
+                virtual ~RxCallback () {}
+
+                virtual void onRx (uint8_t *data, size_t len)
+                {
+                        Debug *d = Debug::singleton ();
+                        // d->print ("nrfRx received : ");
+                        d->printArray (data, len);
+                        d->print ("\n");
+                }
+
+                virtual void onTx () {}
+
+                virtual void onMaxRt ()
+                {
+                        Debug *d = Debug::singleton ();
+                        d->print ("nrfRx MAX_RT");
+                }
+        } rxCallback;
+
+        nrfRx.setCallback (&rxCallback);
+
+        uint8_t bufTx[PACKET_SIZE] = { 1, 2, 3, 4, 5 };
+        while (1) {
+                //                nrfTx.transmit (bufTx, PACKET_SIZE);
+                //                ++(bufTx[4]);
+                HAL_Delay (500);
+        }
+
 #else
         uint8_t bufRx[SymaX5HWRxProtocol::RX_PACKET_SIZE + 1] = {
                 0x00,
         };
 
         /*---------------------------------------------------------------------------*/
+        Nrf24L01P nrfRx (&spiRx, &ceRx, &irqRxNrf, 50);
 
         nrfRx.setConfig (Nrf24L01P::MASK_NO_IRQ, true, Nrf24L01P::CRC_LEN_2);
         nrfRx.setTxAddress (SymaX5HWRxProtocol::BIND_ADDR, 5);
@@ -182,7 +194,7 @@ int main ()
         nrfRx.setEnableDataPipe (Nrf24L01P::ERX_P0);
         nrfRx.setAdressWidth (Nrf24L01P::WIDTH_5);
         nrfRx.setChannel (SymaX5HWRxProtocol::BIND_CHANNELS[0]);
-        nrfRx.setAutoRetransmit (Nrf24L01P::WAIT_4000, Nrf24L01P::RETRANSMIT_15);
+        nrfRx.setAutoRetransmit (Nrf24L01P::WAIT_4000_US, Nrf24L01P::RETRANSMIT_15);
         nrfRx.setPayloadLength (0, SymaX5HWRxProtocol::RX_PACKET_SIZE);
         nrfRx.setDataRate (Nrf24L01P::KBPS_250, Nrf24L01P::DBM_0);
 
@@ -192,11 +204,15 @@ int main ()
 
         SymaX5HWRxProtocol syma (&nrfRx);
 
-        nrfRx.setOnData ([&syma, &nrfRx, &bufRx] {
-                uint8_t *out = nrfRx.receive (bufRx, SymaX5HWRxProtocol::RX_PACKET_SIZE);
-                syma.onPacket (out);
-        });
+        //                nrfRx.setOnData ([&syma, &nrfRx, &bufRx] {
+        //                        uint8_t *out = nrfRx.receive (bufRx, SymaX5HWRxProtocol::RX_PACKET_SIZE);
+        //                        syma.onPacket (out);
+        //                });
+
+        nrfRx.setCallback (&syma);
 #endif
+
+#if 0
         /*+-------------------------------------------------------------------------+*/
         /*| MPU6050                                                                 |*/
         /*+-------------------------------------------------------------------------+*/
@@ -209,6 +225,9 @@ int main ()
         Gpio i2cPins (GPIOB, GPIO_PIN_6 | GPIO_PIN_7, GPIO_MODE_AF_OD, GPIO_PULLUP, GPIO_SPEED_FREQ_HIGH, GPIO_AF4_I2C1);
         I2c i2c;
         Mpu6050 mpu6050 (&i2c);
+        mpu6050.setFullScaleGyroRange (MPU6050_GYRO_FS_250);
+        mpu6050.setFullScaleAccelRange (MPU6050_ACCEL_FS_2);
+        mpu6050.setRate (79);
 
         if (mpu6050.testConnection ()) {
                 d->print ("MPU 6050 OK");
@@ -223,9 +242,9 @@ int main ()
         /*| Motors                                                                  |*/
         /*+-------------------------------------------------------------------------+*/
 
-        // 1kHz if I'm correct
         const int PWM_PERIOD = 200;
 
+        // TIM1 -> APB2 (84MHz) -> but CK_INT = 168MHz
         Pwm pwmLeft (TIM1, 42 - 1, PWM_PERIOD - 1);
         pwmLeft.enableChannels (Pwm::CHANNEL2);
         Gpio directionLeftPin (GPIOE, GPIO_PIN_9);
@@ -291,7 +310,7 @@ int main ()
         HAL_Delay (100);
 
         d->print ("Temp : ");
-        d->print (mpu6050.getTemperature ());
+        d->print (int(mpu6050.getTemperature ()));
         d->print ("\n");
 
         HAL_Delay (100);
@@ -373,7 +392,8 @@ int main ()
                                 //                        gInX.put (gx);
 
                                 //                        if (gInX.isFull ()) {
-                                //                                int o = a0 * gInX[0] + a1 * gInX[-1] + a2 * gInX[-2] + b1 * gOutX[0] + b2 * gOutX[-1];
+                                //                                int o = a0 * gInX[0] + a1 * gInX[-1] + a2 * gInX[-2] + b1 * gOutX[0] + b2 *
+           gOutX[-1];
                                 //                                gOutX.put (o);
                                 //                                // d->print (gOutX.get ());
                                 //                                // d->print (", ");
@@ -403,79 +423,138 @@ int main ()
                 }
         */
         uint32_t n = 0;
-        float angleAccel, angle = 0, angleGyro = 0;
-        float ofx = 0, ofy = 0, ofz = 0;
 
         // TODO why when set to 10, timeCnt reads 91, and when set to 9 timeCnt is 100? When 10 it shoud be 100.
         const int readoutDelayMs = 9;
         const float dt = /*1.0 / readoutDelayMs*/ readoutDelayMs + 1;
-        const float GYROSCALE = 6500;
-        const int ACCELSCALE = 13;
-        int16_t ax, ay, az;
-        int16_t gx, gy, gz;
         float error, prevError, integral, derivative;
         integral = derivative = prevError = 0;
         float kp, ki, kd, out;
         kp = 0;
         ki = 0;
         kd = 0;
-        float correction = 0.12;
+        float setPoint = 0;
 
 #ifndef SYMA_RX
-        nrfRx.setOnData ([d, &nrfRx, &bufRx, &kp, &ki, &kd, &correction, &integral, &prevError, &motorLeft, &motorRight] {
-                //                d->print ("IRQ: ");
-                uint8_t *out = nrfRx.receive (bufRx, PACKET_SIZE);
-                //                for (int i = 0; i < PACKET_SIZE; ++i) {
-                //                        d->print (out[i]);
-                //                        d->print (",");
-                //                }
-                //                d->print ("\n");
 
-                uint8_t command = out[0];
-                int param = *reinterpret_cast<int *> (out + 1);
+        class TxCallback : public Nrf24L01PCallback {
+        public:
+                virtual ~TxCallback () {}
 
-                d->print ("Command : ");
-                d->print (&command, 1);
-                d->print (" ");
-                d->print (param);
-                d->print ("\n");
+                virtual void onRx (uint8_t *data, size_t len)
+                {
+                        uint8_t command = data[0];
+                        int param = *reinterpret_cast<int *> (data + 1);
 
-                switch (command) {
-                case 'p':
-                        kp = param;
-                        break;
+                        Debug *d = Debug::singleton ();
+                        d->print ("Command : ");
+                        d->print (&command, 1);
+                        d->print (" ");
+                        d->print (param);
+                        d->print ("\n");
 
-                case 'i':
-                        ki = param / 1000.0;
-                        break;
+                        switch (command) {
+                        case 'p':
+                                *kp = param * 10.0;
+                                break;
 
-                case 'd':
-                        kd = param / 1000.0;
-                        break;
+                        case 'i':
+                                *ki = param / 10.0;
+                                break;
 
-                case 'c':
-                        correction = param / 1000.0;
-                        break;
+                        case 'd':
+                                *kd = param * 10.0;
+                                break;
 
-                case 'm':
-                        motorLeft.setSpeed (param);
-                        motorRight.setSpeed (param);
-                        //                        motorLeft.power (true);
-                        //                        motorLeft.setSpeed (param);
+                        case 'c':
+                                *sp = param / 10000.0;
+                                break;
 
-                        //                        if (param == 0) {
-                        //                                motorLeft.power (false);
-                        //                        }
-                        break;
+                        case 'm':
+                                motorLeft->setSpeed (param);
+                                motorRight->setSpeed (param);
+                                break;
 
-                default:
-                        d->print ("Unknown command. Available cmds : p,i,d,c");
-                        break;
+                        default:
+                                break;
+                        }
                 }
 
-                integral = 0;
-                prevError = 0;
-        });
+                virtual void onTx () {}
+
+                virtual void onMaxRt ()
+                {
+                        Debug *d = Debug::singleton ();
+                        d->print ("nrfTx MAX_RT! Unable to send packet!");
+                }
+
+                float *kp, *ki, *kd, *sp;
+                BrushedMotor *motorLeft, *motorRight;
+        } txCallback;
+
+        txCallback.kp = &kp;
+        txCallback.ki = &ki;
+        txCallback.kd = &kd;
+        txCallback.sp = &setPoint;
+        txCallback.motorLeft = &motorLeft;
+        txCallback.motorRight = &motorRight;
+
+//        nrfRx.setCallback (&txCallback);
+
+//        nrfRx.setOnData ([d, &nrfRx, &bufRx, &kp, &ki, &kd, &setPoint, &integral, &prevError, &motorLeft, &motorRight] {
+//                //                d->print ("IRQ: ");
+//                uint8_t *out = nrfRx.receive (bufRx, PACKET_SIZE);
+//                //                for (int i = 0; i < PACKET_SIZE; ++i) {
+//                //                        d->print (out[i]);
+//                //                        d->print (",");
+//                //                }
+//                //                d->print ("\n");
+
+//                uint8_t command = out[0];
+//                int param = *reinterpret_cast<int *> (out + 1);
+
+//                d->print ("Command : ");
+//                d->print (&command, 1);
+//                d->print (" ");
+//                d->print (param);
+//                d->print ("\n");
+
+//                switch (command) {
+//                case 'p':
+//                        kp = param * 10.0;
+//                        break;
+
+//                case 'i':
+//                        ki = param / 10.0;
+//                        break;
+
+//                case 'd':
+//                        kd = param * 10.0;
+//                        break;
+
+//                case 'c':
+//                        setPoint = param / 10000.0;
+//                        break;
+
+//                case 'm':
+//                        motorLeft.setSpeed (param);
+//                        motorRight.setSpeed (param);
+//                        //                        motorLeft.power (true);
+//                        //                        motorLeft.setSpeed (param);
+
+//                        //                        if (param == 0) {
+//                        //                                motorLeft.power (false);
+//                        //                        }
+//                        break;
+
+//                default:
+//                        d->print ("Unknown command. Available cmds : p,i,d,c");
+//                        break;
+//                }
+
+//                integral = 0;
+//                prevError = 0;
+//        });
 #else
 
         syma.onRxValues = [&motorLeft, &motorRight, &d](SymaX5HWRxProtocol::RxValues const &v) {
@@ -491,55 +570,68 @@ int main ()
         };
 #endif
 
-        nrfRx.powerUp (Nrf24L01P::RX);
+        //        nrfRx.powerUp (Nrf24L01P::RX);
 
         timeControl.start (1000);
         int timeCnt = 0;
 
-//        while (true) {
-//        }
+        int16_t iax, iay, iaz, igx, igy, igz;
+        float ax, ay, az, gx, gy, gz;
+        float ofx = 0, ofy = 0, ofz = 0; // Gyro offsets
+
+        //        while (true) {
+        //        }
 
         while (1) {
                 if (readout.isExpired ()) {
-                        mpu6050.getMotion6 (&az, &ay, &ax, &gz, &gy, &gx);
-                        angleAccel = atan (float(ay) / float(ax));
-                        angleAccel = (angleAccel > 0) ? ((M_PI / 2) - angleAccel) : (-((M_PI / 2) + angleAccel));
 
-                        // Korekta (ułożenie akcelerometru względem ramy). TODO automatycznie?
-                        angleAccel -= correction;
+                        // mpu6050.getMotion6 (&az, &ay, &ax, &gz, &gy, &gx);
+                        mpu6050.getMotion6 (&iaz, &iay, &iax, &igz, &igy, &igx);
+                        ax = iax;
+                        ay = iay;
+                        az = iaz;
+                        gx = igx;
+                        gy = igy;
+                        gz = igz;
 
+#if 1
                         // "Calibration"
-                        if (++n < 200) {
+                        if (++n < 50) {
+                                continue;
+                        }
+                        else if (n < 250) {
                                 ofx += gx;
                                 ofy += gy;
                                 ofz += gz;
-                                printf ("%d, %d\n", gx, gy);
+                                // printf ("%d, %d\n", gx, gy);
                                 continue;
                         }
-                        else if (n == 200) {
+                        else if (n == 250) {
                                 ofx /= 200.0;
                                 ofy /= 200.0;
                                 ofz /= 200.0;
-                                printf ("Offsets : %d, %d\n", int(ofx), int(ofy));
+                                // printf ("Offsets : %d, %d\n", int(ofx), int(ofy));
                         }
+                        else {
+                                gx -= ofx;
+                                gy -= ofy;
+                                gz -= ofz;
 
-                        gx -= ofx;
-                        gy -= ofy;
-                        gz -= ofz;
+                                gx /= (131.0 * 57.2958); // Scale factor from MPU 6050 docs
+                                gy /= (131.0 * 57.2958);
+                                gz /= (131.0 * 57.2958);
 
-                        angle -= (gz / GYROSCALE) / dt;
-                        angleGyro = angle;
-                        angleAccel *= ACCELSCALE;
+                                ax /= 4096.0 * 4; // Scale factor from MPU 6050 docs
+                                ay /= 4096.0 * 4;
+                                az /= 4096.0 * 4;
+                        }
+#endif
 
-                        /*
-                         * TODO to 13 skaluje akcelerometr. TODO2 ALE CZEMU!? Nie pamiętam po co to było
-                         * ale prawdopodobnie chodziło o to, żeby dopasować jednostki żyroskopu i akcelerometru
-                         * do siebie.
-                         */
-                        angle = 0.98 * (angle) + 0.02 * angleAccel;
+                        MadgwickAHRSupdateIMU (gx, gy, -gz, ax, ay, az);
+                        float pitch = asinf (-2.0f * (q1 * q3 - q0 * q2));
 
                         // PID
-                        error = 0 - angle;
+                        error = setPoint - pitch;
                         integral += error * dt;
                         derivative = (error - prevError) / dt;
                         out = kp * error + ki * integral + kd * derivative;
@@ -549,18 +641,40 @@ int main ()
                         motorRight.setSpeed (out);
 
                         // End
-                        //                        printf ("%d, %d, %d, %d, %d\n", int(angleAccel * 1000), gy, gz, int(angle * 1000), int(out * 100));
                         readout.start (readoutDelayMs);
                         ++timeCnt;
-                        // printf ("gyro : %d, accell : %d, complement : %d\n", int(angleGyro * 1000), int (angleAccel * 1000), int (angle * 1000));
+
+#if 1
+                        static int i = 0;
+
+                        if (++i % 10 == 0) {
+                                // printf ("Acc1000 :\t%d\t%d\t%d\tGyro1000 :\t%d\t%d\t%d\n", int(ax * 1000), int(ay * 1000), int(az * 1000),
+                                // int(gx * 1000),
+                                //         int(gy * 1000), int(gz * 1000));
+                                // printf ("%d,%d,%d,%d,%d,%d,%d\n", int(ax * 1000), int(ay * 1000), int(az * 1000), int(gx * 1000), int(gy *
+                                // 1000),
+                                //         int(gz * 1000), int(pitch * 1000));
+
+                                static uint8_t buf[32] = { 1, 2, 3, 4, 5 };
+                                // memcpy (buf, &pitch, sizeof (pitch));
+                                nrfTx.flushTx ();
+                                nrfTx.transmit (buf, 5);
+                        }
+#endif
                 }
 
-                //                if (timeControl.isExpired ()) {
-                //                        printf ("%d, %d\n", timeCnt, int (angle * 1000));
-                //                        timeCnt = 0;
-                //                        timeControl.start (1000);
-                //                }
+#if 0
+                if (timeControl.isExpired ()) {
+                        if (timeCnt < 98) {
+                                printf ("CPOU to slow! timeCnt =  %d\n", timeCnt);
+                        }
+
+                        timeCnt = 0;
+                        timeControl.start (1000);
+                }
+#endif
         }
+#endif
 }
 
 /*****************************************************************************/

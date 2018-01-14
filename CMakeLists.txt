@@ -69,6 +69,8 @@ add_library ("stm" STATIC
         "src/syscalls.c"
         "src/system_stm32f4xx.c"
         "src/stm32f4xx_hal_conf.h"
+        "src/MadgwickAHRS.c"
+        "src/MadgwickAHRS.h"
         "${CUBE_ROOT}/Drivers/STM32F4xx_HAL_Driver/Src/stm32f4xx_hal_adc.c"
         "${CUBE_ROOT}/Drivers/STM32F4xx_HAL_Driver/Src/stm32f4xx_hal_adc_ex.c"
         "${CUBE_ROOT}/Drivers/STM32F4xx_HAL_Driver/Src/stm32f4xx_hal.c"
