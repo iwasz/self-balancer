@@ -67,96 +67,46 @@ int main ()
         /*| NRF24L01+                                                               |*/
         /*+-------------------------------------------------------------------------+*/
 
-//        Gpio ceRx (GPIOD, GPIO_PIN_0);
-//        ceRx.set (false);
+        Gpio ceTx (GPIOD, GPIO_PIN_0);
+        ceTx.set (false);
 
-//        Gpio irqRxNrf (GPIOD, GPIO_PIN_1, GPIO_MODE_IT_FALLING, GPIO_PULLUP);
-//        HAL_NVIC_SetPriority (EXTI1_IRQn, 3, 0);
-//        HAL_NVIC_EnableIRQ (EXTI1_IRQn);
+        Gpio irqTxNrf (GPIOD, GPIO_PIN_1, GPIO_MODE_IT_FALLING, GPIO_PULLUP);
+        HAL_NVIC_SetPriority (EXTI1_IRQn, 3, 0);
+        HAL_NVIC_EnableIRQ (EXTI1_IRQn);
 
-//        Gpio spiRxGpiosNss (GPIOD, GPIO_PIN_2, GPIO_MODE_OUTPUT_OD, GPIO_PULLUP);
-//        /// PB3 = SCK, PB4 = MISO, PB5 = MOSI
-//        Gpio spiRxGpiosMisoMosiSck (GPIOB, GPIO_PIN_3 | GPIO_PIN_4 | GPIO_PIN_5, GPIO_MODE_AF_PP, GPIO_NOPULL, GPIO_SPEED_FREQ_HIGH,
-//                                    GPIO_AF5_SPI1);
-//        Spi spiRx (SPI1);
-//        spiRx.setNssGpio (&spiRxGpiosNss);
+        Gpio spiTxGpiosNss (GPIOD, GPIO_PIN_2, GPIO_MODE_OUTPUT_OD, GPIO_PULLUP);
+        /// PB3 = SCK, PB4 = MISO, PB5 = MOSI
+        Gpio spiTxGpiosMisoMosiSck (GPIOB, GPIO_PIN_3 | GPIO_PIN_4 | GPIO_PIN_5, GPIO_MODE_AF_PP, GPIO_NOPULL, GPIO_SPEED_FREQ_HIGH,
+                                    GPIO_AF5_SPI1);
+        Spi spiTx (SPI1);
+        spiTx.setNssGpio (&spiTxGpiosNss);
 
         //#define SYMA_RX
 
 #ifndef SYMA_RX
-//        Nrf24L01P nrfTx (&spiRx, &ceRx, &irqRxNrf, 50);
-//        nrfTx.setConfig (Nrf24L01P::MASK_TX_DS, true, Nrf24L01P::CRC_LEN_2);
-//        nrfTx.setTxAddress (CX10_ADDRESS, 5);
-//        nrfTx.setRxAddress (0, CX10_ADDRESS, 5);
-//        nrfTx.setEnableDataPipe (Nrf24L01P::ERX_P0);
-//        nrfTx.setAdressWidth (Nrf24L01P::WIDTH_5);
-//        nrfTx.setChannel (CHANNEL);
-//        nrfTx.setPayloadLength (0, PACKET_SIZE);
-//        nrfTx.setDataRate (Nrf24L01P::MBPS_1, Nrf24L01P::DBM_0);
-//        HAL_Delay (100);
-//        nrfTx.powerUp (Nrf24L01P::TX);
-//        HAL_Delay (100);
-
-//        class TxCallback : public Nrf24L01PCallback {
-//        public:
-//                virtual ~TxCallback () {}
-
-//                virtual void onRx (uint8_t *data, size_t len)
-//                {
-//                        Debug *d = Debug::singleton ();
-//                        d->print ("nrfTx received : ");
-//                        d->printArray (data, len);
-//                        d->print ("\n");
-//                }
-
-//                virtual void onTx () {}
-
-//                virtual void onMaxRt ()
-//                {
-//                        Debug *d = Debug::singleton ();
-//                        d->print ("nrfTx MAX_RT! Unable to send packet!");
-//                }
-//        } txCallback;
-
-//        nrfTx.setCallback (&txCallback);
-
-        /*---------------------------------------------------------------------------*/
-
-        Gpio ceRx (GPIOE, GPIO_PIN_15);
-        ceRx.set (false);
-
-        Gpio irqRxNrf (GPIOB, GPIO_PIN_11, GPIO_MODE_IT_FALLING, GPIO_PULLUP);
-        HAL_NVIC_SetPriority (EXTI15_10_IRQn, 3, 0);
-        HAL_NVIC_EnableIRQ (EXTI15_10_IRQn);
-
-        Gpio spiRxGpiosNss (GPIOB, GPIO_PIN_12, GPIO_MODE_OUTPUT_OD, GPIO_PULLUP);
-        /// PB13 = SCK, PB14 = MISO, PB15 = MOSI
-        Gpio spiRxGpiosMisoMosiSck (GPIOB, GPIO_PIN_13 | GPIO_PIN_14 | GPIO_PIN_15, GPIO_MODE_AF_PP, GPIO_NOPULL, GPIO_SPEED_FREQ_HIGH,
-                                    GPIO_AF5_SPI2);
-        Spi spiRx (SPI2);
-        spiRx.setNssGpio (&spiRxGpiosNss);
-
-        Nrf24L01P nrfRx (&spiRx, &ceRx, &irqRxNrf, 50);
-        nrfRx.setConfig (Nrf24L01P::MASK_TX_DS, true, Nrf24L01P::CRC_LEN_2);
-        nrfRx.setTxAddress (CX10_ADDRESS, 5);
-        nrfRx.setRxAddress (0, CX10_ADDRESS, 5);
-        nrfRx.setEnableDataPipe (Nrf24L01P::ERX_P0);
-        nrfRx.setAdressWidth (Nrf24L01P::WIDTH_5);
-        nrfRx.setChannel (CHANNEL);
-        nrfRx.setPayloadLength (0, PACKET_SIZE);
-        nrfRx.setDataRate (Nrf24L01P::MBPS_1, Nrf24L01P::DBM_0);
+        Nrf24L01P nrfTx (&spiTx, &ceTx, &irqTxNrf, 50);
+        nrfTx.setConfig (Nrf24L01P::MASK_TX_DS, true, Nrf24L01P::CRC_LEN_2);
+        nrfTx.setTxAddress (CX10_ADDRESS, 5);
+        nrfTx.setRxAddress (0, CX10_ADDRESS, 5);
+        nrfTx.setAutoAck (Nrf24L01P::ENAA_P0);
+        nrfTx.setEnableDataPipe (Nrf24L01P::ERX_P0);
+        nrfTx.setAdressWidth (Nrf24L01P::WIDTH_5);
+        nrfTx.setChannel (CHANNEL);
+        nrfTx.setAutoRetransmit (Nrf24L01P::WAIT_1000_US, Nrf24L01P::RETRANSMIT_15);
+        nrfTx.setPayloadLength (0, PACKET_SIZE);
+        nrfTx.setDataRate (Nrf24L01P::MBPS_1, Nrf24L01P::DBM_0);
         HAL_Delay (100);
-        nrfRx.powerUp (Nrf24L01P::RX);
+        nrfTx.powerUp (Nrf24L01P::TX);
         HAL_Delay (100);
 
-        class RxCallback : public Nrf24L01PCallback {
+        class TxCallback : public Nrf24L01PCallback {
         public:
-                virtual ~RxCallback () {}
+                virtual ~TxCallback () {}
 
                 virtual void onRx (uint8_t *data, size_t len)
                 {
                         Debug *d = Debug::singleton ();
-                        // d->print ("nrfRx received : ");
+                        d->print ("nrfTx received : ");
                         d->printArray (data, len);
                         d->print ("\n");
                 }
@@ -166,16 +116,68 @@ int main ()
                 virtual void onMaxRt ()
                 {
                         Debug *d = Debug::singleton ();
-                        d->print ("nrfRx MAX_RT");
+                        d->print ("nrfTx MAX_RT! Unable to send packet!");
                 }
-        } rxCallback;
+        } txCallback;
 
-        nrfRx.setCallback (&rxCallback);
+        nrfTx.setCallback (&txCallback);
+
+        /*---------------------------------------------------------------------------*/
+
+        //        Gpio ceRx (GPIOE, GPIO_PIN_15);
+        //        ceRx.set (false);
+
+        //        Gpio irqRxNrf (GPIOB, GPIO_PIN_11, GPIO_MODE_IT_FALLING, GPIO_PULLUP);
+        //        HAL_NVIC_SetPriority (EXTI15_10_IRQn, 3, 0);
+        //        HAL_NVIC_EnableIRQ (EXTI15_10_IRQn);
+
+        //        Gpio spiRxGpiosNss (GPIOB, GPIO_PIN_12, GPIO_MODE_OUTPUT_OD, GPIO_PULLUP);
+        //        /// PB13 = SCK, PB14 = MISO, PB15 = MOSI
+        //        Gpio spiRxGpiosMisoMosiSck (GPIOB, GPIO_PIN_13 | GPIO_PIN_14 | GPIO_PIN_15, GPIO_MODE_AF_PP, GPIO_NOPULL, GPIO_SPEED_FREQ_HIGH,
+        //                                    GPIO_AF5_SPI2);
+        //        Spi spiRx (SPI2);
+        //        spiRx.setNssGpio (&spiRxGpiosNss);
+
+        //        Nrf24L01P nrfRx (&spiRx, &ceRx, &irqRxNrf, 50);
+        //        nrfRx.setConfig (Nrf24L01P::MASK_TX_DS, true, Nrf24L01P::CRC_LEN_2);
+        //        nrfRx.setTxAddress (CX10_ADDRESS, 5);
+        //        nrfRx.setRxAddress (0, CX10_ADDRESS, 5);
+        //        nrfRx.setEnableDataPipe (Nrf24L01P::ERX_P0);
+        //        nrfRx.setAdressWidth (Nrf24L01P::WIDTH_5);
+        //        nrfRx.setChannel (CHANNEL);
+        //        nrfRx.setPayloadLength (0, PACKET_SIZE);
+        //        nrfRx.setDataRate (Nrf24L01P::MBPS_1, Nrf24L01P::DBM_0);
+        //        HAL_Delay (100);
+        //        nrfRx.powerUp (Nrf24L01P::RX);
+        //        HAL_Delay (100);
+
+        //        class RxCallback : public Nrf24L01PCallback {
+        //        public:
+        //                virtual ~RxCallback () {}
+
+        //                virtual void onRx (uint8_t *data, size_t len)
+        //                {
+        //                        Debug *d = Debug::singleton ();
+        //                        // d->print ("nrfRx received : ");
+        //                        d->printArray (data, len);
+        //                        d->print ("\n");
+        //                }
+
+        //                virtual void onTx () {}
+
+        //                virtual void onMaxRt ()
+        //                {
+        //                        Debug *d = Debug::singleton ();
+        //                        d->print ("nrfRx MAX_RT");
+        //                }
+        //        } rxCallback;
+
+        //        nrfRx.setCallback (&rxCallback);
 
         uint8_t bufTx[PACKET_SIZE] = { 1, 2, 3, 4, 5 };
         while (1) {
-                //                nrfTx.transmit (bufTx, PACKET_SIZE);
-                //                ++(bufTx[4]);
+                nrfTx.transmit (bufTx, PACKET_SIZE);
+                ++(bufTx[4]);
                 HAL_Delay (500);
         }
 
