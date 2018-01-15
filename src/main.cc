@@ -342,7 +342,8 @@ int main ()
         uint32_t n = 0;
 
         const int readoutDelayMs = 10;
-        const float dt = /*1.0 / readoutDelayMs*/ readoutDelayMs;
+        const float dt = /*1.0 / readoutDelayMs*/ readoutDelayMs / 1000.0;
+        const float iScale = dt, dScale = dt * 100.0;
         float error, prevError, integral, derivative;
         integral = derivative = prevError = 0;
         float kp, ki, kd, out;
@@ -395,6 +396,8 @@ int main ()
                         default:
                                 break;
                         }
+
+                        *integral = 0;
                 }
 
                 virtual void onTx () {}
@@ -405,7 +408,7 @@ int main ()
                         d->print ("nrfTx MAX_RT! Unable to send packet!");
                 }
 
-                float *kp, *ki, *kd, *sp;
+                float *kp, *ki, *kd, *sp, *integral;
                 BrushedMotor *motorLeft, *motorRight;
         } txCallback;
 
@@ -415,64 +418,11 @@ int main ()
         txCallback.sp = &setPoint;
         txCallback.motorLeft = &motorLeft;
         txCallback.motorRight = &motorRight;
+        txCallback.integral = &integral;
 
         nrfTx.setCallback (&txCallback);
 #endif
 
-//        nrfRx.setOnData ([d, &nrfRx, &bufRx, &kp, &ki, &kd, &setPoint, &integral, &prevError, &motorLeft, &motorRight] {
-//                //                d->print ("IRQ: ");
-//                uint8_t *out = nrfRx.receive (bufRx, PACKET_SIZE);
-//                //                for (int i = 0; i < PACKET_SIZE; ++i) {
-//                //                        d->print (out[i]);
-//                //                        d->print (",");
-//                //                }
-//                //                d->print ("\n");
-
-//                uint8_t command = out[0];
-//                int param = *reinterpret_cast<int *> (out + 1);
-
-//                d->print ("Command : ");
-//                d->print (&command, 1);
-//                d->print (" ");
-//                d->print (param);
-//                d->print ("\n");
-
-//                switch (command) {
-//                case 'p':
-//                        kp = param * 10.0;
-//                        break;
-
-//                case 'i':
-//                        ki = param / 10.0;
-//                        break;
-
-//                case 'd':
-//                        kd = param * 10.0;
-//                        break;
-
-//                case 'c':
-//                        setPoint = param / 10000.0;
-//                        break;
-
-//                case 'm':
-//                        motorLeft.setSpeed (param);
-//                        motorRight.setSpeed (param);
-//                        //                        motorLeft.power (true);
-//                        //                        motorLeft.setSpeed (param);
-
-//                        //                        if (param == 0) {
-//                        //                                motorLeft.power (false);
-//                        //                        }
-//                        break;
-
-//                default:
-//                        d->print ("Unknown command. Available cmds : p,i,d,c");
-//                        break;
-//                }
-
-//                integral = 0;
-//                prevError = 0;
-//        });
 #else
 
         syma.onRxValues = [&motorLeft, &motorRight, &d](SymaX5HWRxProtocol::RxValues const &v) {
@@ -497,8 +447,8 @@ int main ()
         float ax, ay, az, gx, gy, gz;
         float ofx = 0, ofy = 0, ofz = 0; // Gyro offsets
 
-        //        while (true) {
-        //        }
+        //                while (true) {
+        //                }
 
         while (1) {
                 if (readout.isExpired ()) {
@@ -550,8 +500,16 @@ int main ()
 
                         // PID
                         error = setPoint - pitch;
-                        integral += error * dt;
-                        derivative = (error - prevError) / dt;
+                        integral += error * iScale;
+
+                        if (integral > 5) {
+                                integral = 5;
+                        }
+                        else if (integral < -5) {
+                                integral = -5;
+                        }
+
+                        derivative = (error - prevError) / dScale;
                         out = kp * error + ki * integral + kd * derivative;
                         prevError = error;
 
@@ -566,13 +524,6 @@ int main ()
                         static int i = 0;
 
                         if (++i % 10 == 0) {
-                                // printf ("Acc1000 :\t%d\t%d\t%d\tGyro1000 :\t%d\t%d\t%d\n", int(ax * 1000), int(ay * 1000), int(az * 1000),
-                                // int(gx * 1000),
-                                //         int(gy * 1000), int(gz * 1000));
-                                // printf ("%d,%d,%d,%d,%d,%d,%d\n", int(ax * 1000), int(ay * 1000), int(az * 1000), int(gx * 1000), int(gy *
-                                // 1000),
-                                //         int(gz * 1000), int(pitch * 1000));
-
                                 uint8_t buf[32];
 
                                 // Sending ints since reveiver runs on STM32F0 without fp, and cant printf floats.
@@ -580,14 +531,16 @@ int main ()
                                 int errorI = error * 100;
                                 int integralI = integral * 100;
                                 int derivativeI = derivative * 100;
+                                int outI = out * 100;
 
-                                //                                printf ("%d,%d,%d,%d\n", pitchI, errorI, integralI, derivativeI);
+                                // printf ("%d,%d,%d,%d\n", pitchI, errorI, integralI, derivativeI);
 
                                 memcpy (buf, &pitchI, 4);
                                 memcpy (buf + 4, &errorI, 4);
                                 memcpy (buf + 8, &integralI, 4);
                                 memcpy (buf + 12, &derivativeI, 4);
-                                nrfTx.transmit (buf, 16);
+                                memcpy (buf + 16, &outI, 4);
+                                nrfTx.transmit (buf, 20);
                         }
 #endif
                 }
