@@ -94,8 +94,6 @@ int main ()
         nrfTx.setAdressWidth (Nrf24L01P::WIDTH_5);
         nrfTx.setChannel (CHANNEL);
         nrfTx.setAutoRetransmit (Nrf24L01P::WAIT_1000_US, Nrf24L01P::RETRANSMIT_15);
-        //        nrfTx.setPayloadLength (0, PACKET_SIZE);
-        //        nrfTx.setPayloadLength (1, PACKET_SIZE);
         nrfTx.setDataRate (Nrf24L01P::MBPS_1, Nrf24L01P::DBM_0);
         nrfTx.setEnableDynamicPayload (Nrf24L01P::DPL_P0 | Nrf24L01P::DPL_P0);
         nrfTx.setFeature (Nrf24L01P::EN_DPL | Nrf24L01P::EN_ACK_PAY);
@@ -103,6 +101,7 @@ int main ()
         nrfTx.powerUp (Nrf24L01P::TX);
         HAL_Delay (100);
 
+#if 0
         class TxCallback : public Nrf24L01PCallback {
         public:
                 virtual ~TxCallback () {}
@@ -115,7 +114,7 @@ int main ()
                         d->print ("\n");
                 }
 
-                virtual void onTx () { /*Debug::singleton ()->print ("nrfTx : TX_DS\n");*/ }
+                virtual void onTx () { /*Debug::singleton ()->print ("nrfTx : TX_DS\n");*/}
 
                 virtual void onMaxRt ()
                 {
@@ -127,7 +126,6 @@ int main ()
         nrfTx.setCallback (&txCallback);
 
         /*---------------------------------------------------------------------------*/
-
         Gpio ceRx (GPIOE, GPIO_PIN_15);
         ceRx.set (false);
 
@@ -171,7 +169,7 @@ int main ()
                         d->print ("\n");
                 }
 
-                virtual void onTx () { /*Debug::singleton ()->print ("nrfRx : TX_DS\n");*/ }
+                virtual void onTx () { /*Debug::singleton ()->print ("nrfRx : TX_DS\n");*/}
 
                 virtual void onMaxRt ()
                 {
@@ -181,23 +179,26 @@ int main ()
         } rxCallback;
 
         nrfRx.setCallback (&rxCallback);
-
         uint8_t bufTx[PACKET_SIZE] = { 1, 2, 3, 4, 5 };
         uint8_t ack[PACKET_SIZE] = { 7, 8, 9, 10, 11 };
 
-        Timer tim;
+        Timer timTx;
+        Timer timRx;
         while (1) {
 
-                if (tim.isExpired ()) {
-                        nrfRx.setAckPayload (1, ack, PACKET_SIZE);
-                        ++(ack[4]);
+//                if (timRx.isExpired ()) {
+//                        nrfRx.setAckPayload (1, ack, PACKET_SIZE);
+//                        ++(ack[4]);
+//                        timRx.start (500);
+//                }
 
-                        nrfTx.transmit (bufTx, PACKET_SIZE);
+                if (timTx.isExpired ()) {
+                        nrfTx.transmit (bufTx, 16);
                         ++(bufTx[4]);
-
-                        tim.start (500);
+                        timTx.start (100);
                 }
         }
+#endif
 
 #else
         uint8_t bufRx[SymaX5HWRxProtocol::RX_PACKET_SIZE + 1] = {
@@ -232,7 +233,7 @@ int main ()
         nrfRx.setCallback (&syma);
 #endif
 
-#if 0
+#if 1
         /*+-------------------------------------------------------------------------+*/
         /*| MPU6050                                                                 |*/
         /*+-------------------------------------------------------------------------+*/
@@ -338,115 +339,10 @@ int main ()
         Timer readout;
         Timer timeControl;
 
-        /*
-                const int AVG_LEN = 5;
-                int i = 0;
-                CircularBuffer<int16_t> gInX (3);
-                CircularBuffer<int16_t> gOutX (2);
-                CircularBuffer<int16_t> gyy (3);
-                CircularBuffer<int16_t> gyz (3);
-                float angle = 0;
-                float m1, m;
-                m1 = m = 0;
-                uint32_t n = 0;
-
-                FirFilter<float, sizeof (filter_taps) / sizeof (float), filter_taps> myFilter;
-
-                float out = 0;
-
-
-                while (1) {
-                        int16_t axt[AVG_LEN], ayt[AVG_LEN], azt[AVG_LEN];
-                        int ax, ay, az;
-                        int16_t gx, gy, gz;
-
-                        //                int16_t gxin[3], gyin[3], gzin[3];
-                        //                int gk = 0;
-
-                        float wc = tan (M_PI * (300.0 / 1000.0));
-                        float k1 = 2 * wc, k2 = wc * wc;
-                        float a0, a1, a2, b1, b2;
-
-                        a0 = a2 = k2 / (1 + k1 + k2);
-                        a1 = -2 * a0;
-                        b1 = -((1 / k2) - 1) * 2 * a0;
-                        b2 = 1 - (a0 + a1 + a2 + b1);
-
-                        if (readout.isExpired ()) {
-                                mpu6050.getMotion6 (&axt[i], &ayt[i], &azt[i], &gx, &gy, &gz);
-
-                                m = m1 + ((gx - m1) / ++n);
-                                m1 = m;
-
-                                //                        gx -= m;
-                                //                        gy -= 113;
-                                //                        gz -= 63;
-
-                                //                        output[i] = (input[i] * ALPHA) + (ouptut[i] * (1.0 - ALPHA));
-                                out = (gx - m) * ALPHA + (out * (1.0 - ALPHA));
-
-                                angle += out;
-                                myFilter.put ((gx - m));
-
-                                // Low pass filter for accelerometer
-                                if (i < AVG_LEN - 1) {
-                                        ++i;
-                                }
-                                else {
-                                        i = 0;
-
-                                        ax = ay = az = 0;
-
-                                        for (int j = 0; j < AVG_LEN; ++j) {
-                                                ax += axt[j];
-                                                ay += ayt[j];
-                                                az += azt[j];
-                                        }
-
-                                        ax /= AVG_LEN;
-                                        ay /= AVG_LEN;
-                                        az /= AVG_LEN;
-                                }
-
-                                // High pass flter for gyroscope
-                                //                        gInX.put (gx);
-
-                                //                        if (gInX.isFull ()) {
-                                //                                int o = a0 * gInX[0] + a1 * gInX[-1] + a2 * gInX[-2] + b1 * gOutX[0] + b2 *
-           gOutX[-1];
-                                //                                gOutX.put (o);
-                                //                                // d->print (gOutX.get ());
-                                //                                // d->print (", ");
-                                //                        }
-
-                                //                nrfRx.receive (bufRx, 1);
-                                //                d->print (bufRx[0]);
-                                //                d->print ("\n");
-
-                                //                        printf ("%d, %d, %d, %d, %d, %d, %d\n", ax, ay, ax, gx, gy, gz, angle);
-                                printf ("%d, %d, %d, angle = %d\n", gx, int(gx - m), int(out), int(angle));
-
-                                float R = sqrt (float(ax * ax) + float(ay * ay) + float(az * az));
-                                // float anX = acosf (ax / R);
-                                // float anY = acosf (ay / R);
-                                float anZ = acosf (az / R);
-
-                                float error = anZ - angleSp;
-                                // d->print (-error * 600);
-                                // d->print ("\n");
-
-                                //                        motorLeft.setSpeed (-error * 1000);
-                                //                        motorRight.setSpeed (-error * 1000);
-
-                                readout.start (20);
-                        }
-                }
-        */
         uint32_t n = 0;
 
-        // TODO why when set to 10, timeCnt reads 91, and when set to 9 timeCnt is 100? When 10 it shoud be 100.
-        const int readoutDelayMs = 9;
-        const float dt = /*1.0 / readoutDelayMs*/ readoutDelayMs + 1;
+        const int readoutDelayMs = 10;
+        const float dt = /*1.0 / readoutDelayMs*/ readoutDelayMs;
         float error, prevError, integral, derivative;
         integral = derivative = prevError = 0;
         float kp, ki, kd, out;
@@ -457,6 +353,7 @@ int main ()
 
 #ifndef SYMA_RX
 
+#if 1
         class TxCallback : public Nrf24L01PCallback {
         public:
                 virtual ~TxCallback () {}
@@ -519,7 +416,8 @@ int main ()
         txCallback.motorLeft = &motorLeft;
         txCallback.motorRight = &motorRight;
 
-//        nrfRx.setCallback (&txCallback);
+        nrfTx.setCallback (&txCallback);
+#endif
 
 //        nrfRx.setOnData ([d, &nrfRx, &bufRx, &kp, &ki, &kd, &setPoint, &integral, &prevError, &motorLeft, &motorRight] {
 //                //                d->print ("IRQ: ");
@@ -675,18 +573,29 @@ int main ()
                                 // 1000),
                                 //         int(gz * 1000), int(pitch * 1000));
 
-                                static uint8_t buf[32] = { 1, 2, 3, 4, 5 };
-                                // memcpy (buf, &pitch, sizeof (pitch));
-                                nrfTx.flushTx ();
-                                nrfTx.transmit (buf, 5);
+                                uint8_t buf[32];
+
+                                // Sending ints since reveiver runs on STM32F0 without fp, and cant printf floats.
+                                int pitchI = pitch * 100;
+                                int errorI = error * 100;
+                                int integralI = integral * 100;
+                                int derivativeI = derivative * 100;
+
+                                //                                printf ("%d,%d,%d,%d\n", pitchI, errorI, integralI, derivativeI);
+
+                                memcpy (buf, &pitchI, 4);
+                                memcpy (buf + 4, &errorI, 4);
+                                memcpy (buf + 8, &integralI, 4);
+                                memcpy (buf + 12, &derivativeI, 4);
+                                nrfTx.transmit (buf, 16);
                         }
 #endif
                 }
 
-#if 0
+#if 1
                 if (timeControl.isExpired ()) {
-                        if (timeCnt < 98) {
-                                printf ("CPOU to slow! timeCnt =  %d\n", timeCnt);
+                        if (timeCnt < (1000 / readoutDelayMs) - 2) {
+                                printf ("CPU to slow! timeCnt =  %d\n", timeCnt);
                         }
 
                         timeCnt = 0;
