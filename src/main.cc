@@ -248,7 +248,8 @@ int main ()
         Mpu6050 mpu6050 (&i2c);
         mpu6050.setFullScaleGyroRange (MPU6050_GYRO_FS_250);
         mpu6050.setFullScaleAccelRange (MPU6050_ACCEL_FS_2);
-        mpu6050.setRate (79);
+        // mpu6050.setRate (79);
+        mpu6050.setRate (7);
 
         if (mpu6050.testConnection ()) {
                 d->print ("MPU 6050 OK");
@@ -341,9 +342,9 @@ int main ()
 
         uint32_t n = 0;
 
-        const int readoutDelayMs = 10;
-        const float dt = /*1.0 / readoutDelayMs*/ readoutDelayMs / 1000.0;
-        const float iScale = dt, dScale = dt * 100.0;
+        const int readoutDelayMs = 1;
+        const float dt = /*1.0 / readoutDelayMs*/ readoutDelayMs;
+        const float iScale = dt, dScale = dt / 100.0;
         float error, prevError, integral, derivative;
         integral = derivative = prevError = 0;
         float kp, ki, kd, out;
@@ -450,6 +451,8 @@ int main ()
         //                while (true) {
         //                }
 
+        //        FloatQueue integralElements (100);
+
         while (1) {
                 if (readout.isExpired ()) {
 
@@ -500,13 +503,15 @@ int main ()
 
                         // PID
                         error = setPoint - pitch;
+
                         integral += error * iScale;
 
-                        if (integral > 5) {
-                                integral = 5;
+                        // Simple anti integral windup.
+                        if (integral > 500) {
+                                integral = 500;
                         }
-                        else if (integral < -5) {
-                                integral = -5;
+                        else if (integral < -500) {
+                                integral = -500;
                         }
 
                         derivative = (error - prevError) / dScale;
@@ -523,12 +528,12 @@ int main ()
 #if 1
                         static int i = 0;
 
-                        if (++i % 10 == 0) {
+                        if (++i % 100 == 0) {
                                 uint8_t buf[32];
 
                                 // Sending ints since reveiver runs on STM32F0 without fp, and cant printf floats.
-                                int pitchI = pitch * 100;
-                                int errorI = error * 100;
+                                int pitchI = pitch * 1000;
+                                int errorI = error * 1000;
                                 int integralI = integral * 100;
                                 int derivativeI = derivative * 100;
                                 int outI = out * 100;
