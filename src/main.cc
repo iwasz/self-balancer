@@ -348,10 +348,10 @@ int main ()
         float error, prevError, integral, derivative;
         integral = derivative = prevError = 0;
         float kp, ki, kd, out;
-        kp = 0;
-        ki = 0;
-        kd = 0;
-        float setPoint = 0;
+        kp = 1000;
+        ki = 15;
+        kd = 200;
+        float setPoint = 0.04;
 
 #ifndef SYMA_RX
 
@@ -450,8 +450,6 @@ int main ()
 
         //                while (true) {
         //                }
-
-        //        FloatQueue integralElements (100);
 
         while (1) {
                 if (readout.isExpired ()) {
