@@ -243,22 +243,22 @@ int main ()
         //        HAL_NVIC_SetPriority (EXTI9_5_IRQn, 3, 0);
         //        HAL_NVIC_EnableIRQ (EXTI9_5_IRQn);
 
-        //        Gpio i2cPins (GPIOB, GPIO_PIN_6 | GPIO_PIN_7, GPIO_MODE_AF_OD, GPIO_PULLUP, GPIO_SPEED_FREQ_HIGH, GPIO_AF4_I2C1);
-        //        I2c i2c;
-        //        Mpu6050 mpu6050 (&i2c);
-        //        mpu6050.setFullScaleGyroRange (MPU6050_GYRO_FS_250);
-        //        mpu6050.setFullScaleAccelRange (MPU6050_ACCEL_FS_2);
-        //        // mpu6050.setRate (79);
-        //        mpu6050.setRate (7);
+        Gpio i2cPins (GPIOB, GPIO_PIN_6 | GPIO_PIN_7, GPIO_MODE_AF_OD, GPIO_PULLUP, GPIO_SPEED_FREQ_HIGH, GPIO_AF4_I2C1);
+        I2c i2c;
+        Mpu6050 mpu6050 (&i2c);
+        mpu6050.setFullScaleGyroRange (MPU6050_GYRO_FS_250);
+        mpu6050.setFullScaleAccelRange (MPU6050_ACCEL_FS_2);
+        // mpu6050.setRate (79);
+        mpu6050.setRate (7);
 
-        //        if (mpu6050.testConnection ()) {
-        //                d->print ("MPU 6050 OK");
-        //        }
-        //        else {
-        //                d->print ("MPU 6050 Fail");
-        //        }
+        if (mpu6050.testConnection ()) {
+                d->print ("MPU 6050 OK");
+        }
+        else {
+                d->print ("MPU 6050 Fail");
+        }
 
-        //        mpu6050.setTempSensorEnabled (true);
+        mpu6050.setTempSensorEnabled (true);
 
         /*+-------------------------------------------------------------------------+*/
         /*| Motors                                                                  |*/
@@ -276,15 +276,15 @@ int main ()
         motorLeft.setDirectionInvert (true);
 
         //        // TIM3 -> APB1 (42MHz) -> but CK_INT = 84MHz
-        //        Pwm pwmRight (TIM3, 21 - 1, PWM_PERIOD - 1);
-        //        pwmRight.enableChannels (Pwm::CHANNEL3);
-        //        Gpio directionRightPin (GPIOB, GPIO_PIN_1);
-        //        Gpio pwmRightPin (GPIOB, GPIO_PIN_0, GPIO_MODE_AF_PP, GPIO_NOPULL, GPIO_SPEED_FREQ_LOW, GPIO_AF2_TIM3);
-        //        BrushedMotor motorRight (&directionRightPin, &pwmRight, Pwm::CHANNEL3, PWM_PERIOD);
-        //        motorRight.setPwmInvert (true);
+        Pwm pwmRight (TIM3, 21 - 1, PWM_PERIOD - 1);
+        pwmRight.enableChannels (Pwm::CHANNEL3);
+        Gpio directionRightPin (GPIOB, GPIO_PIN_1);
+        Gpio pwmRightPin (GPIOB, GPIO_PIN_0, GPIO_MODE_AF_PP, GPIO_NOPULL, GPIO_SPEED_FREQ_LOW, GPIO_AF2_TIM3);
+        BrushedMotor motorRight (&directionRightPin, &pwmRight, Pwm::CHANNEL3, PWM_PERIOD);
+        motorRight.setPwmInvert (true);
 
         motorLeft.setSpeed (0);
-        //        motorRight.setSpeed (0);
+        motorRight.setSpeed (0);
 
         /*+-------------------------------------------------------------------------+*/
         /*| Encoders                                                                |*/
@@ -292,11 +292,38 @@ int main ()
 
         // TIM3 is APB1 (42MHz) so CK_INT is 84MHz. Prescaler 84 -> counter runs @ 1MHz, period 100 gives us UEV frequency 10kHz
         HardwareTimer tim2 (TIM2, 8400 - 1, 65536 - 1);
-        Gpio encoderPins (GPIOA, GPIO_PIN_1 | GPIO_PIN_2, GPIO_MODE_AF_PP, GPIO_NOPULL, GPIO_SPEED_FREQ_HIGH, GPIO_AF1_TIM2);
+        Gpio encoderPins (GPIOA, GPIO_PIN_1 | GPIO_PIN_2, GPIO_MODE_AF_PP, GPIO_PULLDOWN, GPIO_SPEED_FREQ_HIGH, GPIO_AF1_TIM2);
         InputCaptureChannel inputCapture2 (&tim2, 1, true);
+
+        uint32_t prevCCR2 = 0;
+        int encoderL;
+
+        inputCapture2.setOnIrq ([&encoderL, &prevCCR2] {
+                encoderL = TIM2->CCR2 - prevCCR2;
+                prevCCR2 = TIM2->CCR2;
+
+                if (encoderL < 0) {
+                        encoderL += 65536;
+                }
+        });
+
         InputCaptureChannel inputCapture3 (&tim2, 2, true);
+
+        uint32_t prevCCR3 = 0;
+        int encoderR;
+
+        inputCapture3.setOnIrq ([&encoderR, &prevCCR3] {
+                encoderR = TIM2->CCR3 - prevCCR3;
+                prevCCR3 = TIM2->CCR3;
+
+                if (encoderR < 0) {
+                        encoderR += 65536;
+                }
+        });
+
         HAL_NVIC_SetPriority (TIM2_IRQn, 6, 0);
         HAL_NVIC_EnableIRQ (TIM2_IRQn);
+        TIM2->CNT = 0;
 
 #if 0
         //        //        tim3.enableChannels (Pwm::CHANNEL1);
@@ -343,7 +370,7 @@ int main ()
         HAL_Delay (100);
 
         d->print ("Temp : ");
-        //        d->print (int(mpu6050.getTemperature ()));
+        d->print (int(mpu6050.getTemperature ()));
         d->print ("\n");
 
         HAL_Delay (100);
@@ -421,8 +448,8 @@ int main ()
 
                 virtual void onMaxRt ()
                 {
-                        //                        Debug *d = Debug::singleton ();
-                        //                        d->print ("nRF MAX_RT!\n");
+                        Debug *d = Debug::singleton ();
+                        d->print ("nRF MAX_RT!\n");
                 }
 
                 float *kp, *ki, *kd, *sp, *integral;
@@ -434,7 +461,7 @@ int main ()
         txCallback.kd = &kd;
         txCallback.sp = &setPoint;
         txCallback.motorLeft = &motorLeft;
-        //        txCallback.motorRight = &motorRight;
+        txCallback.motorRight = &motorRight;
         txCallback.integral = &integral;
 
         nrfTx.setCallback (&txCallback);
@@ -463,16 +490,17 @@ int main ()
         int16_t iax, iay, iaz, igx, igy, igz;
         float ax, ay, az, gx, gy, gz;
         float ofx = 0, ofy = 0, ofz = 0; // Gyro offsets
+        bool sanityBlockade = false;
 
-        //                while (true) {
-        //                }
+        // Delay for Madgwick to heat up.
+        Timer startupTimer;
+        startupTimer.start (5000);
 
-        uint32_t prevCCr = 0;
         while (1) {
                 if (readout.isExpired ()) {
 
                         // mpu6050.getMotion6 (&az, &ay, &ax, &gz, &gy, &gx);
-                        //                        mpu6050.getMotion6 (&iaz, &iay, &iax, &igz, &igy, &igx);
+                        mpu6050.getMotion6 (&iaz, &iay, &iax, &igz, &igy, &igx);
                         ax = iax;
                         ay = iay;
                         az = iaz;
@@ -480,7 +508,6 @@ int main ()
                         gy = igy;
                         gz = igz;
 
-#if 1
                         // "Calibration"
                         if (++n < 50) {
                                 continue;
@@ -511,9 +538,13 @@ int main ()
                                 ay /= 4096.0 * 4;
                                 az /= 4096.0 * 4;
                         }
-#endif
 
                         MadgwickAHRSupdateIMU (gx, gy, -gz, ax, ay, az);
+
+                        if (!startupTimer.isExpired ()) {
+                                continue;
+                        }
+
                         float pitch = asinf (-2.0f * (q1 * q3 - q0 * q2));
 
                         // PID
@@ -522,23 +553,30 @@ int main ()
                         integral += error * iScale;
 
                         // Simple anti integral windup.
-                        if (integral > 500) {
-                                integral = 500;
+                        if (integral > 25) {
+                                integral = 25;
                         }
-                        else if (integral < -500) {
-                                integral = -500;
+                        else if (integral < -25) {
+                                integral = -25;
                         }
 
                         derivative = (error - prevError) / dScale;
                         out = kp * error + ki * integral + kd * derivative;
                         prevError = error;
 
-                        if (pitch > 0.6 || pitch < -0.6) {
+                        if (sanityBlockade && (error < 0.002)) {
+                                integral = 0;
                                 out = 0;
+                                sanityBlockade = false;
+                        }
+
+                        if (sanityBlockade || pitch > 0.6 || pitch < -0.6) {
+                                out = 0;
+                                sanityBlockade = true;
                         }
 
                         motorLeft.setSpeed (out);
-                        //                        motorRight.setSpeed (out);
+                        motorRight.setSpeed (out);
 
                         // End
                         readout.start (readoutDelayMs);
@@ -566,7 +604,7 @@ int main ()
                                 memcpy (buf + 16, &outI, 4);
                                 nrfTx.transmit (buf, 20);
 
-                                printf ("CCR2 %ld\n", tim2.htim.Instance->CCR2);
+                                // printf ("%d,%d\n", encoderL, encoderR);
                         }
 #endif
                 }
