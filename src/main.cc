@@ -239,26 +239,26 @@ int main ()
         /*+-------------------------------------------------------------------------+*/
 
         // Not used right now
-        Gpio irqRxMpu (GPIOB, GPIO_PIN_9, GPIO_MODE_IT_FALLING, GPIO_PULLUP);
-        HAL_NVIC_SetPriority (EXTI9_5_IRQn, 3, 0);
-        HAL_NVIC_EnableIRQ (EXTI9_5_IRQn);
+        //        Gpio irqRxMpu (GPIOB, GPIO_PIN_9, GPIO_MODE_IT_FALLING, GPIO_PULLUP);
+        //        HAL_NVIC_SetPriority (EXTI9_5_IRQn, 3, 0);
+        //        HAL_NVIC_EnableIRQ (EXTI9_5_IRQn);
 
-        Gpio i2cPins (GPIOB, GPIO_PIN_6 | GPIO_PIN_7, GPIO_MODE_AF_OD, GPIO_PULLUP, GPIO_SPEED_FREQ_HIGH, GPIO_AF4_I2C1);
-        I2c i2c;
-        Mpu6050 mpu6050 (&i2c);
-        mpu6050.setFullScaleGyroRange (MPU6050_GYRO_FS_250);
-        mpu6050.setFullScaleAccelRange (MPU6050_ACCEL_FS_2);
-        // mpu6050.setRate (79);
-        mpu6050.setRate (7);
+        //        Gpio i2cPins (GPIOB, GPIO_PIN_6 | GPIO_PIN_7, GPIO_MODE_AF_OD, GPIO_PULLUP, GPIO_SPEED_FREQ_HIGH, GPIO_AF4_I2C1);
+        //        I2c i2c;
+        //        Mpu6050 mpu6050 (&i2c);
+        //        mpu6050.setFullScaleGyroRange (MPU6050_GYRO_FS_250);
+        //        mpu6050.setFullScaleAccelRange (MPU6050_ACCEL_FS_2);
+        //        // mpu6050.setRate (79);
+        //        mpu6050.setRate (7);
 
-        if (mpu6050.testConnection ()) {
-                d->print ("MPU 6050 OK");
-        }
-        else {
-                d->print ("MPU 6050 Fail");
-        }
+        //        if (mpu6050.testConnection ()) {
+        //                d->print ("MPU 6050 OK");
+        //        }
+        //        else {
+        //                d->print ("MPU 6050 Fail");
+        //        }
 
-        mpu6050.setTempSensorEnabled (true);
+        //        mpu6050.setTempSensorEnabled (true);
 
         /*+-------------------------------------------------------------------------+*/
         /*| Motors                                                                  |*/
@@ -275,19 +275,30 @@ int main ()
         motorLeft.setPwmInvert (true);
         motorLeft.setDirectionInvert (true);
 
-        // TIM3 -> APB1 (42MHz) -> but CK_INT = 84MHz
-        Pwm pwmRight (TIM3, 21 - 1, PWM_PERIOD - 1);
-        pwmRight.enableChannels (Pwm::CHANNEL3);
-        Gpio directionRightPin (GPIOB, GPIO_PIN_1);
-        Gpio pwmRightPin (GPIOB, GPIO_PIN_0, GPIO_MODE_AF_PP, GPIO_NOPULL, GPIO_SPEED_FREQ_LOW, GPIO_AF2_TIM3);
-        BrushedMotor motorRight (&directionRightPin, &pwmRight, Pwm::CHANNEL3, PWM_PERIOD);
-        motorRight.setPwmInvert (true);
+        //        // TIM3 -> APB1 (42MHz) -> but CK_INT = 84MHz
+        //        Pwm pwmRight (TIM3, 21 - 1, PWM_PERIOD - 1);
+        //        pwmRight.enableChannels (Pwm::CHANNEL3);
+        //        Gpio directionRightPin (GPIOB, GPIO_PIN_1);
+        //        Gpio pwmRightPin (GPIOB, GPIO_PIN_0, GPIO_MODE_AF_PP, GPIO_NOPULL, GPIO_SPEED_FREQ_LOW, GPIO_AF2_TIM3);
+        //        BrushedMotor motorRight (&directionRightPin, &pwmRight, Pwm::CHANNEL3, PWM_PERIOD);
+        //        motorRight.setPwmInvert (true);
 
         motorLeft.setSpeed (0);
-        motorRight.setSpeed (0);
+        //        motorRight.setSpeed (0);
+
+        /*+-------------------------------------------------------------------------+*/
+        /*| Encoders                                                                |*/
+        /*+-------------------------------------------------------------------------+*/
+
+        // TIM3 is APB1 (42MHz) so CK_INT is 84MHz. Prescaler 84 -> counter runs @ 1MHz, period 100 gives us UEV frequency 10kHz
+        HardwareTimer tim2 (TIM2, 8400 - 1, 65536 - 1);
+        Gpio encoderPins (GPIOA, GPIO_PIN_1 | GPIO_PIN_2, GPIO_MODE_AF_PP, GPIO_NOPULL, GPIO_SPEED_FREQ_HIGH, GPIO_AF1_TIM2);
+        InputCaptureChannel inputCapture2 (&tim2, 1, true);
+        InputCaptureChannel inputCapture3 (&tim2, 2, true);
+        HAL_NVIC_SetPriority (TIM2_IRQn, 6, 0);
+        HAL_NVIC_EnableIRQ (TIM2_IRQn);
 
 #if 0
-        HardwareTimer tim3 (TIM3, 84 - 1, 100 - 1);
         //        //        tim3.enableChannels (Pwm::CHANNEL1);
         //        OutputCompareChannel oc;
         //        //        oc.setOnIrq ([&] { d->print (".\n"); });
@@ -332,7 +343,7 @@ int main ()
         HAL_Delay (100);
 
         d->print ("Temp : ");
-        d->print (int(mpu6050.getTemperature ()));
+        //        d->print (int(mpu6050.getTemperature ()));
         d->print ("\n");
 
         HAL_Delay (100);
@@ -352,6 +363,11 @@ int main ()
         ki = 15;
         kd = 200;
         float setPoint = 0.04;
+
+        // kp = 0;
+        // ki = 0;
+        // kd = 0;
+        // float setPoint = 0.04;
 
 #ifndef SYMA_RX
 
@@ -405,8 +421,8 @@ int main ()
 
                 virtual void onMaxRt ()
                 {
-                        Debug *d = Debug::singleton ();
-                        d->print ("nrfTx MAX_RT! Unable to send packet!");
+                        //                        Debug *d = Debug::singleton ();
+                        //                        d->print ("nRF MAX_RT!\n");
                 }
 
                 float *kp, *ki, *kd, *sp, *integral;
@@ -418,7 +434,7 @@ int main ()
         txCallback.kd = &kd;
         txCallback.sp = &setPoint;
         txCallback.motorLeft = &motorLeft;
-        txCallback.motorRight = &motorRight;
+        //        txCallback.motorRight = &motorRight;
         txCallback.integral = &integral;
 
         nrfTx.setCallback (&txCallback);
@@ -451,11 +467,12 @@ int main ()
         //                while (true) {
         //                }
 
+        uint32_t prevCCr = 0;
         while (1) {
                 if (readout.isExpired ()) {
 
                         // mpu6050.getMotion6 (&az, &ay, &ax, &gz, &gy, &gx);
-                        mpu6050.getMotion6 (&iaz, &iay, &iax, &igz, &igy, &igx);
+                        //                        mpu6050.getMotion6 (&iaz, &iay, &iax, &igz, &igy, &igx);
                         ax = iax;
                         ay = iay;
                         az = iaz;
@@ -516,8 +533,12 @@ int main ()
                         out = kp * error + ki * integral + kd * derivative;
                         prevError = error;
 
+                        if (pitch > 0.6 || pitch < -0.6) {
+                                out = 0;
+                        }
+
                         motorLeft.setSpeed (out);
-                        motorRight.setSpeed (out);
+                        //                        motorRight.setSpeed (out);
 
                         // End
                         readout.start (readoutDelayMs);
@@ -544,6 +565,8 @@ int main ()
                                 memcpy (buf + 12, &derivativeI, 4);
                                 memcpy (buf + 16, &outI, 4);
                                 nrfTx.transmit (buf, 20);
+
+                                printf ("CCR2 %ld\n", tim2.htim.Instance->CCR2);
                         }
 #endif
                 }
