@@ -291,12 +291,12 @@ int main ()
         /*+-------------------------------------------------------------------------+*/
 
         // TIM3 is APB1 (42MHz) so CK_INT is 84MHz. Prescaler 84 -> counter runs @ 1MHz, period 100 gives us UEV frequency 10kHz
-        HardwareTimer tim2 (TIM2, 8400 - 1, 65536 - 1);
+        HardwareTimer tim2 (TIM2, 84 - 1, 65536 - 1);
         Gpio encoderPins (GPIOA, GPIO_PIN_1 | GPIO_PIN_2, GPIO_MODE_AF_PP, GPIO_PULLDOWN, GPIO_SPEED_FREQ_HIGH, GPIO_AF1_TIM2);
         InputCaptureChannel inputCapture2 (&tim2, 1, true);
 
         uint32_t prevCCR2 = 0;
-        int encoderL;
+        int encoderL = 0;
 
         inputCapture2.setOnIrq ([&encoderL, &prevCCR2] {
                 encoderL = TIM2->CCR2 - prevCCR2;
@@ -310,7 +310,7 @@ int main ()
         InputCaptureChannel inputCapture3 (&tim2, 2, true);
 
         uint32_t prevCCR3 = 0;
-        int encoderR;
+        int encoderR = 0;
 
         inputCapture3.setOnIrq ([&encoderR, &prevCCR3] {
                 encoderR = TIM2->CCR3 - prevCCR3;
@@ -383,18 +383,24 @@ int main ()
         const int readoutDelayMs = 1;
         const float dt = /*1.0 / readoutDelayMs*/ readoutDelayMs;
         const float iScale = dt, dScale = dt / 100.0;
+        const float siScale = dt, sdScale = dt / 100.0;
+
         float error, prevError, integral, derivative;
         integral = derivative = prevError = 0;
-        float kp, ki, kd, out;
+        float kp, ki, kd;
+        int out;
         kp = 1000;
         ki = 15;
         kd = 200;
-        float setPoint = 0.04;
+        float setPoint = 0.00;
 
-        // kp = 0;
-        // ki = 0;
-        // kd = 0;
-        // float setPoint = 0.04;
+        float sError, sPrevError, sIntegral, sDerivative;
+        sIntegral = sDerivative = sPrevError = 0;
+        float skp, ski, skd;
+        skp = 0;
+        ski = 0;
+        skd = 0;
+        float sSetPoint = 0;
 
 #ifndef SYMA_RX
 
@@ -428,20 +434,23 @@ int main ()
                                 *kd = param * 10.0;
                                 break;
 
-                        case 'c':
-                                *sp = param / 10000.0;
+                        case 'P':
+                                *skp = param / 10000.0;
                                 break;
 
-                        case 'm':
-                                motorLeft->setSpeed (param);
-                                motorRight->setSpeed (param);
+                        case 'I':
+                                *ski = param / 10000.0;
+                                break;
+
+                        case 'D':
+                                *skd = param / 10000.0;
                                 break;
 
                         default:
                                 break;
                         }
 
-                        *integral = 0;
+                        *sIntegral = *integral = 0;
                 }
 
                 virtual void onTx () {}
@@ -452,17 +461,18 @@ int main ()
                         d->print ("nRF MAX_RT!\n");
                 }
 
-                float *kp, *ki, *kd, *sp, *integral;
-                BrushedMotor *motorLeft, *motorRight;
+                float *kp, *ki, *kd, *integral;
+                float *skp, *ski, *skd, *sIntegral;
         } txCallback;
 
         txCallback.kp = &kp;
         txCallback.ki = &ki;
         txCallback.kd = &kd;
-        txCallback.sp = &setPoint;
-        txCallback.motorLeft = &motorLeft;
-        txCallback.motorRight = &motorRight;
         txCallback.integral = &integral;
+        txCallback.skp = &skp;
+        txCallback.ski = &ski;
+        txCallback.skd = &skd;
+        txCallback.sIntegral = &sIntegral;
 
         nrfTx.setCallback (&txCallback);
 #endif
@@ -498,6 +508,50 @@ int main ()
 
         while (1) {
                 if (readout.isExpired ()) {
+                        static int i = 0;
+                        float speed;
+
+                        /*+-------------------------------------------------------------------------+*/
+                        /*| Speed                                                                   |*/
+                        /*+-------------------------------------------------------------------------+*/
+
+                        int encoderSum = encoderL + encoderR;
+                        speed = encoderSum / 2.0;
+
+                        // To prevent comparing floats
+                        if (encoderSum) {
+                                speed = 100.0 / speed;
+                        }
+
+                        // Input capture frezes when it doesn't receive impulses from encoders when motors aren't spinning.
+                        if (out == 0) {
+                                speed = 0;
+                        }
+
+                        // Encoders in this motor cant sense the direction. So we assume the speed sign is ruled by the motors movement.
+                        if (out > 0) {
+                                speed = -speed;
+                        }
+
+                        sError = sSetPoint - speed;
+                        sIntegral += sError * siScale;
+
+                        // Simple anti integral windup.
+                        if (sIntegral > 1000) {
+                                sIntegral = 1000;
+                        }
+                        else if (sIntegral < -1000) {
+                                sIntegral = -1000;
+                        }
+
+                        sDerivative = (sError - sPrevError) / sdScale;
+                        // Output of this PID is used as an input of the next.
+                        setPoint = skp * sError + ski * sIntegral + skd * sDerivative;
+                        sPrevError = sError;
+
+                        /*+-------------------------------------------------------------------------+*/
+                        /*| Angle                                                                   |*/
+                        /*+-------------------------------------------------------------------------+*/
 
                         // mpu6050.getMotion6 (&az, &ay, &ax, &gz, &gy, &gx);
                         mpu6050.getMotion6 (&iaz, &iay, &iax, &igz, &igy, &igx);
@@ -549,7 +603,6 @@ int main ()
 
                         // PID
                         error = setPoint - pitch;
-
                         integral += error * iScale;
 
                         // Simple anti integral windup.
@@ -583,28 +636,39 @@ int main ()
                         ++timeCnt;
 
 #if 1
-                        static int i = 0;
-
-                        if (++i % 100 == 0) {
+                        if (++i % 50 == 0) {
                                 uint8_t buf[32];
+                                int inputValueI;
+                                int errorI;
+                                int integralI;
+                                int derivativeI;
+                                int outI;
 
-                                // Sending ints since reveiver runs on STM32F0 without fp, and cant printf floats.
-                                int pitchI = pitch * 1000;
-                                int errorI = error * 1000;
-                                int integralI = integral * 100;
-                                int derivativeI = derivative * 100;
-                                int outI = out * 100;
+                                // 50, 150, 250 ...
+                                if (i % 100 != 0) {
+                                        // Sending ints since reveiver runs on STM32F0 without fp, and cant printf floats.
+                                        inputValueI = pitch * 1000;
+                                        errorI = error * 1000;
+                                        integralI = integral * 100;
+                                        derivativeI = derivative * 100;
+                                        outI = out * 100;
+                                }
+                                //                                 100, 200, 300
+                                else {
+                                        inputValueI = speed * 1000;
+                                        errorI = sError;
+                                        integralI = sIntegral * 100;
+                                        derivativeI = sDerivative * 100;
+                                        outI = setPoint * 10000;
+                                }
 
-                                // printf ("%d,%d,%d,%d\n", pitchI, errorI, integralI, derivativeI);
-
-                                memcpy (buf, &pitchI, 4);
-                                memcpy (buf + 4, &errorI, 4);
-                                memcpy (buf + 8, &integralI, 4);
-                                memcpy (buf + 12, &derivativeI, 4);
-                                memcpy (buf + 16, &outI, 4);
-                                nrfTx.transmit (buf, 20);
-
-                                // printf ("%d,%d\n", encoderL, encoderR);
+                                memcpy (buf, &i, 4);
+                                memcpy (buf + 4, &inputValueI, 4);
+                                memcpy (buf + 8, &errorI, 4);
+                                memcpy (buf + 12, &integralI, 4);
+                                memcpy (buf + 16, &derivativeI, 4);
+                                memcpy (buf + 20, &outI, 4);
+                                nrfTx.transmit (buf, 24);
                         }
 #endif
                 }
