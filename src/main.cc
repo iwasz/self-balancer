@@ -54,10 +54,10 @@ int main ()
         HAL_Init ();
         SystemClock_Config ();
 
-        Gpio uartGpios (GPIOD, GPIO_PIN_8 | GPIO_PIN_9, GPIO_MODE_AF_OD, GPIO_PULLUP, GPIO_SPEED_FREQ_HIGH, GPIO_AF7_USART3);
-        HAL_NVIC_SetPriority (USART3_IRQn, 6, 0);
-        HAL_NVIC_EnableIRQ (USART3_IRQn);
-        Usart uart (USART3, 115200);
+        Gpio uartGpios (GPIOB, GPIO_PIN_7 | GPIO_PIN_6, GPIO_MODE_AF_OD, GPIO_PULLUP, GPIO_SPEED_FREQ_HIGH, GPIO_AF7_USART3);
+        HAL_NVIC_SetPriority (USART1_IRQn, 6, 0);
+        HAL_NVIC_EnableIRQ (USART1_IRQn);
+        Usart uart (USART1, 115200);
 
         Debug debug (&uart);
         Debug::singleton () = &debug;
@@ -243,8 +243,8 @@ int main ()
         //        HAL_NVIC_SetPriority (EXTI9_5_IRQn, 3, 0);
         //        HAL_NVIC_EnableIRQ (EXTI9_5_IRQn);
 
-        Gpio i2cPins (GPIOB, GPIO_PIN_6 | GPIO_PIN_7, GPIO_MODE_AF_OD, GPIO_PULLUP, GPIO_SPEED_FREQ_HIGH, GPIO_AF4_I2C1);
-        I2c i2c;
+        Gpio i2cPins (GPIOB, GPIO_PIN_10 | GPIO_PIN_11, GPIO_MODE_AF_OD, GPIO_PULLUP, GPIO_SPEED_FREQ_HIGH, GPIO_AF4_I2C2);
+        I2c i2c (I2C2);
         Mpu6050 mpu6050 (&i2c);
         mpu6050.setFullScaleGyroRange (MPU6050_GYRO_FS_250);
         mpu6050.setFullScaleAccelRange (MPU6050_ACCEL_FS_2);
@@ -275,7 +275,7 @@ int main ()
         motorLeft.setPwmInvert (true);
         motorLeft.setDirectionInvert (true);
 
-        //        // TIM3 -> APB1 (42MHz) -> but CK_INT = 84MHz
+        // TIM3 -> APB1 (42MHz) -> but CK_INT = 84MHz
         Pwm pwmRight (TIM3, 21 - 1, PWM_PERIOD - 1);
         pwmRight.enableChannels (Pwm::CHANNEL3);
         Gpio directionRightPin (GPIOB, GPIO_PIN_1);
@@ -290,6 +290,9 @@ int main ()
         /*| Encoders                                                                |*/
         /*+-------------------------------------------------------------------------+*/
 
+        // PWM for motors.
+        int out = 0;
+
         // TIM3 is APB1 (42MHz) so CK_INT is 84MHz. Prescaler 84 -> counter runs @ 1MHz, period 100 gives us UEV frequency 10kHz
         HardwareTimer tim2 (TIM2, 84 - 1, 65536 - 1);
         Gpio encoderPins (GPIOA, GPIO_PIN_1 | GPIO_PIN_2, GPIO_MODE_AF_PP, GPIO_PULLDOWN, GPIO_SPEED_FREQ_HIGH, GPIO_AF1_TIM2);
@@ -297,13 +300,21 @@ int main ()
 
         uint32_t prevCCR2 = 0;
         int encoderL = 0;
+        int distanceL = 0;
 
-        inputCapture2.setOnIrq ([&encoderL, &prevCCR2] {
+        inputCapture2.setOnIrq ([&encoderL, &prevCCR2, &out, &distanceL] {
                 encoderL = TIM2->CCR2 - prevCCR2;
                 prevCCR2 = TIM2->CCR2;
 
                 if (encoderL < 0) {
                         encoderL += 65536;
+                }
+
+                if (out > 0) {
+                        ++distanceL;
+                }
+                else if (out < 0) {
+                        --distanceL;
                 }
         });
 
@@ -311,13 +322,21 @@ int main ()
 
         uint32_t prevCCR3 = 0;
         int encoderR = 0;
+        int distanceR = 0;
 
-        inputCapture3.setOnIrq ([&encoderR, &prevCCR3] {
+        inputCapture3.setOnIrq ([&encoderR, &prevCCR3, &out, &distanceR] {
                 encoderR = TIM2->CCR3 - prevCCR3;
                 prevCCR3 = TIM2->CCR3;
 
                 if (encoderR < 0) {
                         encoderR += 65536;
+                }
+
+                if (out > 0) {
+                        ++distanceR;
+                }
+                else if (out < 0) {
+                        --distanceR;
                 }
         });
 
@@ -384,20 +403,21 @@ int main ()
         const float dt = /*1.0 / readoutDelayMs*/ readoutDelayMs;
         const float iScale = dt, dScale = dt / 100.0;
         const float siScale = dt, sdScale = dt / 100.0;
+        const float diScale = dt / 1000.0, ddScale = dt * 10;
 
         float error, prevError, integral, derivative;
         integral = derivative = prevError = 0;
         float kp, ki, kd;
-        int out;
         kp = 1000;
         ki = 15;
         kd = 200;
-        float setPoint = 0.00;
+        float setPoint = 0;
+        const float VERTICAL = 0.03;
 
         float sError, sPrevError, sIntegral, sDerivative;
         sIntegral = sDerivative = sPrevError = 0;
         float skp, ski, skd;
-        skp = 0;
+        skp = 2.0 / 10000.0;
         ski = 0;
         skd = 0;
         float sSetPoint = 0;
@@ -499,7 +519,7 @@ int main ()
 
         int16_t iax, iay, iaz, igx, igy, igz;
         float ax, ay, az, gx, gy, gz;
-        float ofx = 0, ofy = 0, ofz = 0; // Gyro offsets
+        float ofx = 0, ofy = 0, ofz = 0; // Gyro offsets.
         bool sanityBlockade = false;
 
         // Delay for Madgwick to heat up.
@@ -533,18 +553,21 @@ int main ()
                                 speed = -speed;
                         }
 
-                        sError = sSetPoint - speed;
-                        sIntegral += sError * siScale;
+                        int distance = -(distanceL + distanceR) / 2;
+
+                        // sError = sSetPoint - speed;
+                        sError = sSetPoint - distance;
+                        sIntegral += sError * diScale;
 
                         // Simple anti integral windup.
-                        if (sIntegral > 1000) {
-                                sIntegral = 1000;
+                        if (sIntegral > 25) {
+                                sIntegral = 25;
                         }
-                        else if (sIntegral < -1000) {
-                                sIntegral = -1000;
+                        else if (sIntegral < -25) {
+                                sIntegral = -25;
                         }
 
-                        sDerivative = (sError - sPrevError) / sdScale;
+                        sDerivative = (sError - sPrevError) / ddScale;
                         // Output of this PID is used as an input of the next.
                         setPoint = skp * sError + ski * sIntegral + skd * sDerivative;
                         sPrevError = sError;
@@ -602,7 +625,7 @@ int main ()
                         float pitch = asinf (-2.0f * (q1 * q3 - q0 * q2));
 
                         // PID
-                        error = setPoint - pitch;
+                        error = VERTICAL + setPoint - pitch;
                         integral += error * iScale;
 
                         // Simple anti integral windup.
@@ -655,7 +678,8 @@ int main ()
                                 }
                                 //                                 100, 200, 300
                                 else {
-                                        inputValueI = speed * 1000;
+                                        inputValueI = distance;
+                                        // inputValueI = speed * 1000;
                                         errorI = sError;
                                         integralI = sIntegral * 100;
                                         derivativeI = sDerivative * 100;
@@ -689,42 +713,52 @@ int main ()
 
 /*****************************************************************************/
 
-static void SystemClock_Config (void)
+void SystemClock_Config () // 16MHz
 {
-        RCC_ClkInitTypeDef RCC_ClkInitStruct;
-        RCC_OscInitTypeDef RCC_OscInitStruct;
 
-        /* Enable Power Control clock */
+        RCC_OscInitTypeDef RCC_OscInitStruct;
+        RCC_ClkInitTypeDef RCC_ClkInitStruct;
+
+        /**Configure the main internal regulator output voltage
+         */
         __HAL_RCC_PWR_CLK_ENABLE ();
 
-        /* The voltage scaling allows optimizing the power consumption when the device is
-           clocked below the maximum system frequency, to update the voltage scaling value
-           regarding system frequency refer to product datasheet.  */
         __HAL_PWR_VOLTAGESCALING_CONFIG (PWR_REGULATOR_VOLTAGE_SCALE1);
 
-        /* Enable HSE Oscillator and activate PLL with HSE as source */
+        /**Initializes the CPU, AHB and APB busses clocks
+         */
         RCC_OscInitStruct.OscillatorType = RCC_OSCILLATORTYPE_HSE;
         RCC_OscInitStruct.HSEState = RCC_HSE_ON;
         RCC_OscInitStruct.PLL.PLLState = RCC_PLL_ON;
         RCC_OscInitStruct.PLL.PLLSource = RCC_PLLSOURCE_HSE;
-        RCC_OscInitStruct.PLL.PLLM = 8;
+        RCC_OscInitStruct.PLL.PLLM = 16;
         RCC_OscInitStruct.PLL.PLLN = 336;
         RCC_OscInitStruct.PLL.PLLP = RCC_PLLP_DIV2;
-        RCC_OscInitStruct.PLL.PLLQ = 7;
-        HAL_RCC_OscConfig (&RCC_OscInitStruct);
+        RCC_OscInitStruct.PLL.PLLQ = 4;
+        if (HAL_RCC_OscConfig (&RCC_OscInitStruct) != HAL_OK) {
+                Error_Handler ();
+        }
 
-        /* Select PLL as system clock source and configure the HCLK, PCLK1 and PCLK2
-           clocks dividers */
-        RCC_ClkInitStruct.ClockType = (RCC_CLOCKTYPE_SYSCLK | RCC_CLOCKTYPE_HCLK | RCC_CLOCKTYPE_PCLK1 | RCC_CLOCKTYPE_PCLK2);
+        /**Initializes the CPU, AHB and APB busses clocks
+         */
+        RCC_ClkInitStruct.ClockType = RCC_CLOCKTYPE_HCLK | RCC_CLOCKTYPE_SYSCLK | RCC_CLOCKTYPE_PCLK1 | RCC_CLOCKTYPE_PCLK2;
         RCC_ClkInitStruct.SYSCLKSource = RCC_SYSCLKSOURCE_PLLCLK;
         RCC_ClkInitStruct.AHBCLKDivider = RCC_SYSCLK_DIV1;
         RCC_ClkInitStruct.APB1CLKDivider = RCC_HCLK_DIV4;
         RCC_ClkInitStruct.APB2CLKDivider = RCC_HCLK_DIV2;
-        HAL_RCC_ClockConfig (&RCC_ClkInitStruct, FLASH_LATENCY_5);
 
-        /* STM32F405x/407x/415x/417x Revision Z devices: prefetch is supported  */
-        if (HAL_GetREVID () == 0x1001) {
-                /* Enable the Flash prefetch */
-                __HAL_FLASH_PREFETCH_BUFFER_ENABLE ();
+        if (HAL_RCC_ClockConfig (&RCC_ClkInitStruct, FLASH_LATENCY_5) != HAL_OK) {
+                Error_Handler ();
         }
+
+        /**Configure the Systick interrupt time
+         */
+        HAL_SYSTICK_Config (HAL_RCC_GetHCLKFreq () / 1000);
+
+        /**Configure the Systick
+         */
+        HAL_SYSTICK_CLKSourceConfig (SYSTICK_CLKSOURCE_HCLK);
+
+        /* SysTick_IRQn interrupt configuration */
+        HAL_NVIC_SetPriority (SysTick_IRQn, 0, 0);
 }

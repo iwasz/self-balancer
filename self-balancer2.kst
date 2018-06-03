@@ -17,8 +17,8 @@
         <datavector file="/home/iwasz/workspace/self-balancer/data.txt" fileRelative="workspace/self-balancer/data.txt" field="INDEX" start="-1" count="300" skip="-1" doAve="false" startUnits="" rangeUnits="" initialVNum="9" initialXNum="97"/>
         <datavector file="/home/iwasz/workspace/self-balancer/data.txt" fileRelative="workspace/self-balancer/data.txt" field="Column 7" start="-1" count="300" skip="-1" doAve="false" startUnits="" rangeUnits="" descriptiveNameIsManual="true" descriptiveName="sError" initialVNum="10" initialXNum="109"/>
         <datavector file="/home/iwasz/workspace/self-balancer/data.txt" fileRelative="workspace/self-balancer/data.txt" field="Column 8" start="-1" count="300" skip="-1" doAve="false" startUnits="" rangeUnits="" descriptiveNameIsManual="true" descriptiveName="sIntegral" initialVNum="11" initialXNum="121"/>
-        <datavector file="/home/iwasz/workspace/self-balancer/data.txt" fileRelative="workspace/self-balancer/data.txt" field="sDerivative" start="-1" count="300" skip="-1" doAve="false" startUnits="" rangeUnits="" initialVNum="12" initialXNum="133"/>
-        <datavector file="/home/iwasz/workspace/self-balancer/data.txt" fileRelative="workspace/self-balancer/data.txt" field="setPoint" start="-1" count="300" skip="-1" doAve="false" startUnits="" rangeUnits="" initialVNum="13" initialXNum="145"/>
+        <datavector file="/home/iwasz/workspace/self-balancer/data.txt" fileRelative="workspace/self-balancer/data.txt" field="Column 9" start="-1" count="300" skip="-1" doAve="false" startUnits="" rangeUnits="" descriptiveNameIsManual="true" descriptiveName="sDerivative" initialVNum="12" initialXNum="133"/>
+        <datavector file="/home/iwasz/workspace/self-balancer/data.txt" fileRelative="workspace/self-balancer/data.txt" field="Column 10" start="-1" count="300" skip="-1" doAve="false" startUnits="" rangeUnits="" descriptiveNameIsManual="true" descriptiveName="setPoint" initialVNum="13" initialXNum="145"/>
     </variables>
     <objects/>
     <relations>
@@ -28,20 +28,20 @@
         <curve xvector="INDEX (V1)" yvector="Derivative (V5)" color="#ff00ff" alpha="255" headcolor="#ff00ff" headalpha="255" barfillcolor="#000000" barfillalpha="255" haslines="true" linewidth="0" linestyle="0" haspoints="false" pointtype="3" pointdensity="0" pointsize="12" hasbars="false" ignoreautoscale="false" hashead="false" headtype="0" initialCNum="4"/>
         <curve xvector="INDEX (V1)" yvector="Output (V6)" color="#4682b4" alpha="255" headcolor="#4682b4" headalpha="255" barfillcolor="#000000" barfillalpha="255" haslines="true" linewidth="0" linestyle="0" haspoints="false" pointtype="4" pointdensity="0" pointsize="12" hasbars="false" ignoreautoscale="false" hashead="false" headtype="-2105664512" initialCNum="5"/>
         <curve xvector="INDEX (V7)" yvector="Speed (V8)" color="#0000ff" alpha="255" headcolor="#0000ff" headalpha="255" barfillcolor="#000000" barfillalpha="255" haslines="true" linewidth="0" linestyle="0" haspoints="false" pointtype="0" pointdensity="0" pointsize="12" hasbars="false" ignoreautoscale="false" hashead="false" headtype="0" initialCNum="6"/>
-        <curve xvector="INDEX (V9)" yvector="sError (V10)" color="#0000ff" alpha="255" headcolor="#000000" headalpha="255" barfillcolor="#000000" barfillalpha="255" haslines="true" linewidth="0" linestyle="0" haspoints="false" pointtype="0" pointdensity="0" pointsize="12" hasbars="false" ignoreautoscale="false" hashead="false" headtype="0" initialCNum="7"/>
-        <curve xvector="INDEX (V9)" yvector="sIntegral (V11)" color="#008000" alpha="255" headcolor="#000000" headalpha="255" barfillcolor="#000000" barfillalpha="255" haslines="true" linewidth="0" linestyle="0" haspoints="false" pointtype="1" pointdensity="0" pointsize="12" hasbars="false" ignoreautoscale="false" hashead="false" headtype="1953705014" initialCNum="8"/>
+        <curve xvector="INDEX (V9)" yvector="sError (V10)" color="#ff0000" alpha="255" headcolor="#ff0000" headalpha="255" barfillcolor="#000000" barfillalpha="255" haslines="true" linewidth="0" linestyle="0" haspoints="false" pointtype="0" pointdensity="0" pointsize="12" hasbars="false" ignoreautoscale="false" hashead="false" headtype="0" initialCNum="7"/>
+        <curve xvector="INDEX (V9)" yvector="sIntegral (V11)" color="#008000" alpha="255" headcolor="#008000" headalpha="255" barfillcolor="#000000" barfillalpha="255" haslines="true" linewidth="0" linestyle="0" haspoints="false" pointtype="1" pointdensity="0" pointsize="12" hasbars="false" ignoreautoscale="false" hashead="false" headtype="1953705014" initialCNum="8"/>
         <curve xvector="INDEX (V9)" yvector="sDerivative (V12)" color="#000000" alpha="255" headcolor="#000000" headalpha="255" barfillcolor="#000000" barfillalpha="255" haslines="true" linewidth="0" linestyle="0" haspoints="false" pointtype="2" pointdensity="0" pointsize="12" hasbars="false" ignoreautoscale="false" hashead="false" headtype="0" initialCNum="9"/>
-        <curve xvector="INDEX (V9)" yvector="setPoint (V13)" color="#ff00ff" alpha="255" headcolor="#000000" headalpha="255" barfillcolor="#000000" barfillalpha="255" haslines="true" linewidth="0" linestyle="0" haspoints="false" pointtype="3" pointdensity="0" pointsize="12" hasbars="false" ignoreautoscale="false" hashead="false" headtype="0" initialCNum="10"/>
-        <curve xvector="INDEX (V9)" yvector="sError (V10)" color="#105010" alpha="255" headcolor="#aa0000" headalpha="255" barfillcolor="#0000aa" barfillalpha="255" haslines="true" linewidth="0" linestyle="0" haspoints="false" pointtype="0" pointdensity="0" pointsize="12" hasbars="false" ignoreautoscale="false" hashead="false" headtype="0" initialCNum="11"/>
-        <curve xvector="INDEX (V9)" yvector="sIntegral (V11)" color="#005500" alpha="255" headcolor="#000000" headalpha="255" barfillcolor="#aa00aa" barfillalpha="255" haslines="true" linewidth="0" linestyle="0" haspoints="false" pointtype="0" pointdensity="0" pointsize="12" hasbars="false" ignoreautoscale="false" hashead="false" headtype="0" initialCNum="12"/>
-        <curve xvector="INDEX (V9)" yvector="sDerivative (V12)" color="#2e5778" alpha="255" headcolor="#350a0a" headalpha="255" barfillcolor="#0a350a" barfillalpha="255" haslines="true" linewidth="0" linestyle="0" haspoints="false" pointtype="0" pointdensity="0" pointsize="12" hasbars="false" ignoreautoscale="false" hashead="false" headtype="0" initialCNum="13"/>
-        <curve xvector="INDEX (V9)" yvector="setPoint (V13)" color="#008000" alpha="255" headcolor="#000000" headalpha="255" barfillcolor="#ff00ff" barfillalpha="255" haslines="true" linewidth="0" linestyle="0" haspoints="false" pointtype="3" pointdensity="0" pointsize="12" hasbars="false" ignoreautoscale="false" hashead="false" headtype="0" initialCNum="14"/>
+        <curve xvector="INDEX (V9)" yvector="setPoint (V13)" color="#ff00ff" alpha="255" headcolor="#ff00ff" headalpha="255" barfillcolor="#000000" barfillalpha="255" haslines="true" linewidth="0" linestyle="0" haspoints="false" pointtype="3" pointdensity="0" pointsize="12" hasbars="false" ignoreautoscale="false" hashead="false" headtype="0" initialCNum="10"/>
+        <curve xvector="INDEX (V9)" yvector="sError (V10)" color="#105010" alpha="255" headcolor="#105010" headalpha="255" barfillcolor="#0000aa" barfillalpha="255" haslines="true" linewidth="0" linestyle="0" haspoints="false" pointtype="0" pointdensity="0" pointsize="12" hasbars="false" ignoreautoscale="false" hashead="false" headtype="0" initialCNum="11"/>
+        <curve xvector="INDEX (V9)" yvector="sIntegral (V11)" color="#005500" alpha="255" headcolor="#005500" headalpha="255" barfillcolor="#aa00aa" barfillalpha="255" haslines="true" linewidth="0" linestyle="0" haspoints="false" pointtype="0" pointdensity="0" pointsize="12" hasbars="false" ignoreautoscale="false" hashead="false" headtype="0" initialCNum="12"/>
+        <curve xvector="INDEX (V9)" yvector="sDerivative (V12)" color="#2e5778" alpha="255" headcolor="#2e5778" headalpha="255" barfillcolor="#0a350a" barfillalpha="255" haslines="true" linewidth="0" linestyle="0" haspoints="false" pointtype="0" pointdensity="0" pointsize="12" hasbars="false" ignoreautoscale="false" hashead="false" headtype="0" initialCNum="13"/>
+        <curve xvector="INDEX (V9)" yvector="setPoint (V13)" color="#008000" alpha="255" headcolor="#008000" headalpha="255" barfillcolor="#ff00ff" barfillalpha="255" haslines="true" linewidth="0" linestyle="0" haspoints="false" pointtype="3" pointdensity="0" pointsize="12" hasbars="false" ignoreautoscale="false" hashead="false" headtype="0" initialCNum="14"/>
     </relations>
     <graphics>
         <view name="View &amp;1" width="1915" height="1072" color="#ffffff" style="1">
-            <plot tiedxzoom="false" tiedyzoom="false" leftlabelvisible="true" bottomlabelvisible="true" rightlabelvisible="true" toplabelvisible="true" globalfont="Tahoma [MS],12,-1,5,50,0,0,0,0,0" globalfontscale="11.3137084989848" globalfontcolor="#000000" showlegend="false" hidebottomaxislabel="false" hidetopaxislabel="false" hideleftaxislabel="false" hiderightaxislabel="false" numberaxislabelscale="true" initialPlotNum="13" name="Plot">
-                <position x="957.5" y="802.5" z="500"/>
-                <rect x="0" y="0" width="954.5" height="266.5"/>
+            <plot tiedxzoom="true" tiedyzoom="true" leftlabelvisible="true" bottomlabelvisible="true" rightlabelvisible="true" toplabelvisible="true" globalfont="Tahoma [MS],12,-1,5,50,0,0,0,0,0" globalfontscale="11.3137084989848" globalfontcolor="#000000" showlegend="false" hidebottomaxislabel="false" hidetopaxislabel="false" hideleftaxislabel="false" hiderightaxislabel="false" numberaxislabelscale="true" initialPlotNum="13" name="Plot">
+                <position x="957.000260960334" y="801.752096924511" z="500"/>
+                <rect x="0" y="0" width="954.001826722338" height="266.251630941286"/>
                 <relativesize width="0.498173277661795" height="0.248369058713886" centerx="0.748825678496868" centery="0.872087604846225" posx="0.499739039665971" posy="0.747903075489282" leftx="0.499739039665971" lefty="0.996272134203169" rightx="0.997912317327766" righty="0.996272134203169" fixaspect="false" lockpostodata="false"/>
                 <transform m11="1" m12="0" m13="0" m21="0" m22="1" m23="0" m31="0" m32="0" m33="1"/>
                 <pen style="1" width="1" miterlimit="2" cap="16" joinStyle="64">
@@ -49,7 +49,7 @@
                 </pen>
                 <brush color="#ffffff" style="1"/>
                 <legend auto="true" title="" font="Tahoma,10,-1,5,50,0,0,0,0,0" fontscale="12" color="#000000" verticaldisplay="false" name="Legend">
-                    <position x="195.4625" y="39.9625" z="500"/>
+                    <position x="141.165850699114" y="39.9290094308042" z="500"/>
                     <rect x="0" y="0" width="0" height="0"/>
                     <relativesize width="0" height="0" centerx="0.0306899934597776" centery="0.134841954022989" posx="0.0306899934597776" posy="0.134841954022989" leftx="0.0306899934597776" lefty="0.134841954022989" rightx="0.0306899934597776" righty="0.134841954022989" fixaspect="false" lockpostodata="false"/>
                     <transform m11="1" m12="0" m13="0" m21="0" m22="1" m23="0" m31="0" m32="0" m33="1"/>
@@ -64,7 +64,7 @@
                 <plotaxis id="xaxis" visible="true" log="false" reversed="false" autobaseoffset="true" baseoffset="false" forceoffsetmin="false" interpret="false" interpretation="1" display="4" displayformatstring="hh:mm:ss.zzz" majortickmode="5" minortickcount="5" autominortickcount="true" drawmajorticks="true" drawminorticks="true" drawmajorgridlines="true" drawminorgridlines="false" drawmajorgridlinecolor="#a0a0a4" drawminorgridlinecolor="#a0a0a4" drawmajorgridlinestyle="2" drawminorgridlinestyle="2" drawmajorgridlinewidth="1" drawminorgridlinewidth="1" significantdigits="9" rotation="0" zoommode="0" timezonename="GMT" timezoneoffset="0">
                     <plotmarkers xaxis="true" linecolor="#000000" linestyle="1" linewidth="1" curvemode="1"/>
                 </plotaxis>
-                <plotaxis id="yaxis" visible="true" log="false" reversed="false" autobaseoffset="true" baseoffset="false" forceoffsetmin="false" interpret="false" interpretation="1" display="4" displayformatstring="hh:mm:ss.zzz" majortickmode="5" minortickcount="5" autominortickcount="true" drawmajorticks="true" drawminorticks="true" drawmajorgridlines="true" drawminorgridlines="false" drawmajorgridlinecolor="#a0a0a4" drawminorgridlinecolor="#a0a0a4" drawmajorgridlinestyle="2" drawminorgridlinestyle="2" drawmajorgridlinewidth="1" drawminorgridlinewidth="1" significantdigits="9" rotation="0" zoommode="1" timezonename="GMT" timezoneoffset="0">
+                <plotaxis id="yaxis" visible="true" log="false" reversed="false" autobaseoffset="true" baseoffset="false" forceoffsetmin="false" interpret="false" interpretation="1" display="4" displayformatstring="hh:mm:ss.zzz" majortickmode="5" minortickcount="5" autominortickcount="true" drawmajorticks="true" drawminorticks="true" drawmajorgridlines="true" drawminorgridlines="false" drawmajorgridlinecolor="#a0a0a4" drawminorgridlinecolor="#a0a0a4" drawmajorgridlinestyle="2" drawminorgridlinestyle="2" drawmajorgridlinewidth="1" drawminorgridlinewidth="1" significantdigits="9" rotation="0" zoommode="3" timezonename="GMT" timezoneoffset="0">
                     <plotmarkers xaxis="false" linecolor="#000000" linestyle="1" linewidth="1" curvemode="0"/>
                 </plotaxis>
                 <plotlabel id="leftlabel" visible="true" overridetext="" autolabel="true" font="Tahoma [MS],12,-1,5,50,0,0,0,0,0" fontscale="11.3137084989848" fontcolor="#000000" fontuseglobal="true"/>
@@ -72,11 +72,11 @@
                 <plotlabel id="toplabel" visible="true" overridetext="" autolabel="true" font="Tahoma [MS],12,-1,5,50,0,0,0,0,0" fontscale="11.3137084989848" fontcolor="#000000" fontuseglobal="true"/>
                 <plotlabel id="bottomlabel" visible="true" overridetext="" autolabel="true" font="Tahoma [MS],12,-1,5,50,0,0,0,0,0" fontscale="11.3137084989848" fontcolor="#000000" fontuseglobal="true"/>
                 <plotlabel id="numberlabel" visible="true" overridetext="" autolabel="true" font="Tahoma [MS],12,-1,5,50,0,0,0,0,0" fontscale="11.3137084989848" fontcolor="#000000" fontuseglobal="true"/>
-                <projectionrect x="5553" y="-0.105" width="299" height="0.21"/>
+                <projectionrect x="200" y="-398" width="299" height="688"/>
             </plot>
-            <plot tiedxzoom="false" tiedyzoom="false" leftlabelvisible="true" bottomlabelvisible="true" rightlabelvisible="true" toplabelvisible="true" globalfont="Tahoma [MS],12,-1,5,50,0,0,0,0,0" globalfontscale="11.3137084989848" globalfontcolor="#000000" showlegend="false" hidebottomaxislabel="false" hidetopaxislabel="false" hideleftaxislabel="false" hiderightaxislabel="false" numberaxislabelscale="true" initialPlotNum="11" name="Plot">
-                <position x="957.5" y="536" z="500"/>
-                <rect x="0" y="0" width="954.5" height="266.5"/>
+            <plot tiedxzoom="true" tiedyzoom="true" leftlabelvisible="true" bottomlabelvisible="true" rightlabelvisible="true" toplabelvisible="true" globalfont="Tahoma [MS],12,-1,5,50,0,0,0,0,0" globalfontscale="11.3137084989848" globalfontcolor="#000000" showlegend="false" hidebottomaxislabel="false" hidetopaxislabel="false" hideleftaxislabel="false" hiderightaxislabel="false" numberaxislabelscale="true" initialPlotNum="11" name="Plot">
+                <position x="957.000260960334" y="535.500465983225" z="500"/>
+                <rect x="0" y="0" width="954.001826722338" height="266.251630941286"/>
                 <relativesize width="0.498173277661795" height="0.248369058713886" centerx="0.748825678496868" centery="0.623718546132339" posx="0.499739039665971" posy="0.499534016775396" leftx="0.499739039665971" lefty="0.747903075489282" rightx="0.997912317327766" righty="0.747903075489282" fixaspect="false" lockpostodata="false"/>
                 <transform m11="1" m12="0" m13="0" m21="0" m22="1" m23="0" m31="0" m32="0" m33="1"/>
                 <pen style="1" width="1" miterlimit="2" cap="16" joinStyle="64">
@@ -84,7 +84,7 @@
                 </pen>
                 <brush color="#ffffff" style="1"/>
                 <legend auto="true" title="" font="Tahoma,10,-1,5,50,0,0,0,0,0" fontscale="12" color="#000000" verticaldisplay="false" name="Legend">
-                    <position x="195.4625" y="39.9625" z="500"/>
+                    <position x="141.165850699114" y="39.9290094308042" z="500"/>
                     <rect x="0" y="0" width="0" height="0"/>
                     <relativesize width="0" height="0" centerx="0.0306899934597776" centery="0.134841954022989" posx="0.0306899934597776" posy="0.134841954022989" leftx="0.0306899934597776" lefty="0.134841954022989" rightx="0.0306899934597776" righty="0.134841954022989" fixaspect="false" lockpostodata="false"/>
                     <transform m11="1" m12="0" m13="0" m21="0" m22="1" m23="0" m31="0" m32="0" m33="1"/>
@@ -99,7 +99,7 @@
                 <plotaxis id="xaxis" visible="true" log="false" reversed="false" autobaseoffset="true" baseoffset="false" forceoffsetmin="false" interpret="false" interpretation="1" display="4" displayformatstring="hh:mm:ss.zzz" majortickmode="5" minortickcount="5" autominortickcount="true" drawmajorticks="true" drawminorticks="true" drawmajorgridlines="true" drawminorgridlines="false" drawmajorgridlinecolor="#a0a0a4" drawminorgridlinecolor="#a0a0a4" drawmajorgridlinestyle="2" drawminorgridlinestyle="2" drawmajorgridlinewidth="1" drawminorgridlinewidth="1" significantdigits="9" rotation="0" zoommode="0" timezonename="GMT" timezoneoffset="0">
                     <plotmarkers xaxis="true" linecolor="#000000" linestyle="1" linewidth="1" curvemode="-2085762656"/>
                 </plotaxis>
-                <plotaxis id="yaxis" visible="true" log="false" reversed="false" autobaseoffset="true" baseoffset="false" forceoffsetmin="false" interpret="false" interpretation="1" display="4" displayformatstring="hh:mm:ss.zzz" majortickmode="5" minortickcount="5" autominortickcount="true" drawmajorticks="true" drawminorticks="true" drawmajorgridlines="true" drawminorgridlines="false" drawmajorgridlinecolor="#a0a0a4" drawminorgridlinecolor="#a0a0a4" drawmajorgridlinestyle="2" drawminorgridlinestyle="2" drawmajorgridlinewidth="1" drawminorgridlinewidth="1" significantdigits="9" rotation="0" zoommode="1" timezonename="GMT" timezoneoffset="0">
+                <plotaxis id="yaxis" visible="true" log="false" reversed="false" autobaseoffset="true" baseoffset="false" forceoffsetmin="false" interpret="false" interpretation="1" display="4" displayformatstring="hh:mm:ss.zzz" majortickmode="5" minortickcount="5" autominortickcount="true" drawmajorticks="true" drawminorticks="true" drawmajorgridlines="true" drawminorgridlines="false" drawmajorgridlinecolor="#a0a0a4" drawminorgridlinecolor="#a0a0a4" drawmajorgridlinestyle="2" drawminorgridlinestyle="2" drawmajorgridlinewidth="1" drawminorgridlinewidth="1" significantdigits="9" rotation="0" zoommode="3" timezonename="GMT" timezoneoffset="0">
                     <plotmarkers xaxis="false" linecolor="#000000" linestyle="1" linewidth="1" curvemode="81"/>
                 </plotaxis>
                 <plotlabel id="leftlabel" visible="true" overridetext="" autolabel="true" font="Tahoma [MS],12,-1,5,50,0,0,0,0,0" fontscale="11.3137084989848" fontcolor="#000000" fontuseglobal="true"/>
@@ -107,11 +107,11 @@
                 <plotlabel id="toplabel" visible="true" overridetext="" autolabel="true" font="Tahoma [MS],12,-1,5,50,0,0,0,0,0" fontscale="11.3137084989848" fontcolor="#000000" fontuseglobal="true"/>
                 <plotlabel id="bottomlabel" visible="true" overridetext="" autolabel="true" font="Tahoma [MS],12,-1,5,50,0,0,0,0,0" fontscale="11.3137084989848" fontcolor="#000000" fontuseglobal="true"/>
                 <plotlabel id="numberlabel" visible="true" overridetext="" autolabel="true" font="Tahoma [MS],12,-1,5,50,0,0,0,0,0" fontscale="11.3137084989848" fontcolor="#000000" fontuseglobal="true"/>
-                <projectionrect x="5553" y="-100000.105" width="299" height="0.210000000020955"/>
+                <projectionrect x="200" y="-2500" width="299" height="5000"/>
             </plot>
-            <plot tiedxzoom="false" tiedyzoom="false" leftlabelvisible="true" bottomlabelvisible="true" rightlabelvisible="true" toplabelvisible="true" globalfont="Tahoma,10,-1,5,50,0,0,0,0,0" globalfontscale="11.3137084989848" globalfontcolor="#000000" showlegend="true" hidebottomaxislabel="false" hidetopaxislabel="false" hideleftaxislabel="false" hiderightaxislabel="false" numberaxislabelscale="true" initialPlotNum="5" name="Plot">
-                <position x="957.5" y="269.5" z="500"/>
-                <rect x="0" y="0" width="954.5" height="266.5"/>
+            <plot tiedxzoom="true" tiedyzoom="true" leftlabelvisible="true" bottomlabelvisible="true" rightlabelvisible="true" toplabelvisible="true" globalfont="Tahoma,10,-1,5,50,0,0,0,0,0" globalfontscale="11.3137084989848" globalfontcolor="#000000" showlegend="true" hidebottomaxislabel="false" hidetopaxislabel="false" hideleftaxislabel="false" hiderightaxislabel="false" numberaxislabelscale="true" initialPlotNum="5" name="Plot">
+                <position x="957.000260960334" y="269.248835041938" z="500"/>
+                <rect x="0" y="0" width="954.001826722338" height="266.251630941286"/>
                 <relativesize width="0.498173277661795" height="0.248369058713886" centerx="0.748825678496868" centery="0.375349487418453" posx="0.499739039665971" posy="0.25116495806151" leftx="0.499739039665971" lefty="0.499534016775396" rightx="0.997912317327766" righty="0.499534016775396" fixaspect="false" lockpostodata="false"/>
                 <transform m11="1" m12="0" m13="0" m21="0" m22="1" m23="0" m31="0" m32="0" m33="1"/>
                 <pen style="1" width="1" miterlimit="2" cap="16" joinStyle="64">
@@ -119,9 +119,9 @@
                 </pen>
                 <brush color="#ffffff" style="1"/>
                 <legend auto="true" title="" font="Tahoma,10,-1,5,50,0,0,0,0,0" fontscale="6.78822509939086" color="#000000" verticaldisplay="false" name="Legend">
-                    <position x="198.055421980131" y="32.8246952705997" z="500"/>
+                    <position x="143.947015853145" y="32.8013932637138" z="500"/>
                     <rect x="0" y="0" width="140" height="30"/>
-                    <relativesize width="0.183126226291694" height="0.172413793103448" centerx="0.125644763871983" centery="0.180026984313792" posx="0.0340816507261365" posy="0.0938200877620675" leftx="0.0340816507261365" lefty="0.266233880865516" rightx="0.21720787701783" righty="0.266233880865516" fixaspect="false" lockpostodata="false"/>
+                    <relativesize width="0.17073132697716" height="0.172660249791483" centerx="0.119447314214716" centery="0.180150212657809" posx="0.0340816507261365" posy="0.0938200877620677" leftx="0.0340816507261365" lefty="0.266480337553551" rightx="0.204812977703297" righty="0.266480337553551" fixaspect="false" lockpostodata="false"/>
                     <transform m11="1" m12="0" m13="0" m21="0" m22="1" m23="0" m31="0" m32="0" m33="1"/>
                     <pen style="1" width="1" miterlimit="2" cap="16" joinStyle="64">
                         <brush color="#000000" style="1"/>
@@ -142,11 +142,11 @@
                 <plotlabel id="toplabel" visible="true" overridetext="" autolabel="true" font="Tahoma,10,-1,5,50,0,0,0,0,0" fontscale="11.3137084989848" fontcolor="#000000" fontuseglobal="true"/>
                 <plotlabel id="bottomlabel" visible="true" overridetext="" autolabel="true" font="Tahoma,10,-1,5,50,0,0,0,0,0" fontscale="11.3137084989848" fontcolor="#000000" fontuseglobal="true"/>
                 <plotlabel id="numberlabel" visible="true" overridetext="" autolabel="true" font="Tahoma,10,-1,5,50,0,0,0,0,0" fontscale="11.3137084989848" fontcolor="#000000" fontuseglobal="true"/>
-                <projectionrect x="5553" y="-0.1" width="299" height="0.3"/>
+                <projectionrect x="200" y="-2800" width="299" height="5900"/>
             </plot>
-            <plot tiedxzoom="false" tiedyzoom="false" leftlabelvisible="true" bottomlabelvisible="true" rightlabelvisible="true" toplabelvisible="true" globalfont="Tahoma,10,-1,5,50,0,0,0,0,0" globalfontscale="11.3137084989848" globalfontcolor="#000000" showlegend="true" hidebottomaxislabel="false" hidetopaxislabel="false" hideleftaxislabel="false" hiderightaxislabel="false" numberaxislabelscale="true" initialPlotNum="3" name="Plot">
-                <position x="957.5" y="3" z="500"/>
-                <rect x="0" y="0" width="954.5" height="266.5"/>
+            <plot tiedxzoom="true" tiedyzoom="true" leftlabelvisible="true" bottomlabelvisible="true" rightlabelvisible="true" toplabelvisible="true" globalfont="Tahoma,10,-1,5,50,0,0,0,0,0" globalfontscale="11.3137084989848" globalfontcolor="#000000" showlegend="true" hidebottomaxislabel="false" hidetopaxislabel="false" hideleftaxislabel="false" hiderightaxislabel="false" numberaxislabelscale="true" initialPlotNum="3" name="Plot">
+                <position x="957.000260960334" y="2.99720410065238" z="500"/>
+                <rect x="0" y="0" width="954.001826722338" height="266.251630941286"/>
                 <relativesize width="0.498173277661795" height="0.248369058713886" centerx="0.748825678496868" centery="0.126980428704567" posx="0.499739039665971" posy="0.00279589934762349" leftx="0.499739039665971" lefty="0.25116495806151" rightx="0.997912317327766" righty="0.25116495806151" fixaspect="false" lockpostodata="false"/>
                 <transform m11="1" m12="0" m13="0" m21="0" m22="1" m23="0" m31="0" m32="0" m33="1"/>
                 <pen style="1" width="1" miterlimit="2" cap="16" joinStyle="64">
@@ -154,9 +154,9 @@
                 </pen>
                 <brush color="#ffffff" style="1"/>
                 <legend auto="true" title="" font="Tahoma,10,-1,5,50,0,0,0,0,0" fontscale="6.78822509939086" color="#000000" verticaldisplay="false" name="Legend">
-                    <position x="198.055421980131" y="32.8246952705995" z="500"/>
+                    <position x="143.947015853145" y="32.8013932637137" z="500"/>
                     <rect x="0" y="0" width="147" height="30"/>
-                    <relativesize width="0.192282537606279" height="0.172413793103448" centerx="0.130222919529276" centery="0.18002698431379" posx="0.0340816507261365" posy="0.0938200877620659" leftx="0.0340816507261365" lefty="0.266233880865514" rightx="0.226364188332415" righty="0.266233880865514" fixaspect="false" lockpostodata="false"/>
+                    <relativesize width="0.179267893326018" height="0.172660249791483" centerx="0.123715597389145" centery="0.180150212657808" posx="0.0340816507261365" posy="0.0938200877620669" leftx="0.0340816507261365" lefty="0.26648033755355" rightx="0.213349544052155" righty="0.26648033755355" fixaspect="false" lockpostodata="false"/>
                     <transform m11="1" m12="0" m13="0" m21="0" m22="1" m23="0" m31="0" m32="0" m33="1"/>
                     <pen style="1" width="1" miterlimit="2" cap="16" joinStyle="64">
                         <brush color="#000000" style="1"/>
@@ -177,11 +177,11 @@
                 <plotlabel id="toplabel" visible="true" overridetext="" autolabel="true" font="Tahoma,10,-1,5,50,0,0,0,0,0" fontscale="11.3137084989848" fontcolor="#000000" fontuseglobal="true"/>
                 <plotlabel id="bottomlabel" visible="true" overridetext="" autolabel="true" font="Tahoma,10,-1,5,50,0,0,0,0,0" fontscale="11.3137084989848" fontcolor="#000000" fontuseglobal="true"/>
                 <plotlabel id="numberlabel" visible="true" overridetext="" autolabel="true" font="Tahoma,10,-1,5,50,0,0,0,0,0" fontscale="11.3137084989848" fontcolor="#000000" fontuseglobal="true"/>
-                <projectionrect x="5553" y="-0.1" width="299" height="0.3"/>
+                <projectionrect x="200" y="-169" width="299" height="346"/>
             </plot>
-            <plot tiedxzoom="false" tiedyzoom="false" leftlabelvisible="true" bottomlabelvisible="true" rightlabelvisible="true" toplabelvisible="true" globalfont="Tahoma [MS],12,-1,5,50,0,0,0,0,0" globalfontscale="11.3137084989848" globalfontcolor="#000000" showlegend="true" hidebottomaxislabel="false" hidetopaxislabel="false" hideleftaxislabel="false" hiderightaxislabel="false" numberaxislabelscale="true" descriptiveNameIsManual="true" descriptiveName="Pitch" initialPlotNum="1" name="Plot">
-                <position x="3" y="3" z="500"/>
-                <rect x="0" y="0" width="954.5" height="266.5"/>
+            <plot tiedxzoom="true" tiedyzoom="true" leftlabelvisible="true" bottomlabelvisible="true" rightlabelvisible="true" toplabelvisible="true" globalfont="Tahoma [MS],12,-1,5,50,0,0,0,0,0" globalfontscale="11.3137084989848" globalfontcolor="#000000" showlegend="true" hidebottomaxislabel="false" hidetopaxislabel="false" hideleftaxislabel="false" hiderightaxislabel="false" numberaxislabelscale="true" descriptiveNameIsManual="true" descriptiveName="Pitch" initialPlotNum="1" name="Plot">
+                <position x="2.99843423799582" y="2.99720410065238" z="500"/>
+                <rect x="0" y="0" width="954.001826722338" height="266.251630941286"/>
                 <relativesize width="0.498173277661795" height="0.248369058713886" centerx="0.250652400835073" centery="0.126980428704567" posx="0.00156576200417537" posy="0.00279589934762349" leftx="0.00156576200417537" lefty="0.25116495806151" rightx="0.499739039665971" righty="0.25116495806151" fixaspect="false" lockpostodata="false"/>
                 <transform m11="1" m12="0" m13="0" m21="0" m22="1" m23="0" m31="0" m32="0" m33="1"/>
                 <pen style="1" width="1" miterlimit="2" cap="16" joinStyle="64">
@@ -189,9 +189,9 @@
                 </pen>
                 <brush color="#ffffff" style="1"/>
                 <legend auto="true" title="" font="Tahoma,12,-1,5,50,0,0,0,0,0" fontscale="6.78822509939086" color="#000000" verticaldisplay="false" name="Legend">
-                    <position x="308.072849999801" y="52.8326915439585" z="500"/>
+                    <position x="253.965462291018" y="52.809382107798" z="500"/>
                     <rect x="-110.0034" y="-20.002791543963" width="276" height="30"/>
-                    <relativesize width="0.361020274689339" height="0.172413793103448" centerx="0.214610137344409" centery="0.180056896551698" posx="0.0340999999997393" posy="0.0938499999999742" leftx="0.0340999999997393" lefty="0.266263793103423" rightx="0.395120274689079" righty="0.266263793103423" fixaspect="false" lockpostodata="false"/>
+                    <relativesize width="0.336584616040687" height="0.172660249791483" centerx="0.202392308020083" centery="0.180180124895715" posx="0.0340999999997393" posy="0.0938499999999731" leftx="0.0340999999997393" lefty="0.266510249791456" rightx="0.370684616040426" righty="0.266510249791456" fixaspect="false" lockpostodata="false"/>
                     <transform m11="1" m12="0" m13="0" m21="0" m22="1" m23="0" m31="0" m32="0" m33="1"/>
                     <pen style="1" width="1" miterlimit="2" cap="16" joinStyle="64">
                         <brush color="#000000" style="1"/>
@@ -214,11 +214,11 @@
                 <plotlabel id="toplabel" visible="true" overridetext="" autolabel="true" font="Tahoma [MS],12,-1,5,50,0,0,0,0,0" fontscale="11.3137084989848" fontcolor="#000000" fontuseglobal="true"/>
                 <plotlabel id="bottomlabel" visible="true" overridetext="INDEX" autolabel="true" font="Tahoma [MS],12,-1,5,50,0,0,0,0,0" fontscale="11.3137084989848" fontcolor="#000000" fontuseglobal="true"/>
                 <plotlabel id="numberlabel" visible="true" overridetext="" autolabel="false" font="Tahoma [MS],12,-1,5,50,0,0,0,0,0" fontscale="11.3137084989848" fontcolor="#000000" fontuseglobal="true"/>
-                <projectionrect x="5553" y="-1444" width="299" height="2888"/>
+                <projectionrect x="200" y="-19" width="299" height="86"/>
             </plot>
-            <plot tiedxzoom="false" tiedyzoom="false" leftlabelvisible="true" bottomlabelvisible="true" rightlabelvisible="true" toplabelvisible="true" globalfont="Tahoma,10,-1,5,50,0,0,0,0,0" globalfontscale="11.3137084989848" globalfontcolor="#000000" showlegend="true" hidebottomaxislabel="false" hidetopaxislabel="false" hideleftaxislabel="false" hiderightaxislabel="false" numberaxislabelscale="true" initialPlotNum="4" name="Plot">
-                <position x="3" y="269.5" z="500"/>
-                <rect x="0" y="0" width="954.5" height="266.5"/>
+            <plot tiedxzoom="true" tiedyzoom="true" leftlabelvisible="true" bottomlabelvisible="true" rightlabelvisible="true" toplabelvisible="true" globalfont="Tahoma,10,-1,5,50,0,0,0,0,0" globalfontscale="11.3137084989848" globalfontcolor="#000000" showlegend="true" hidebottomaxislabel="false" hidetopaxislabel="false" hideleftaxislabel="false" hiderightaxislabel="false" numberaxislabelscale="true" initialPlotNum="4" name="Plot">
+                <position x="2.99843423799582" y="269.248835041938" z="500"/>
+                <rect x="0" y="0" width="954.001826722338" height="266.251630941286"/>
                 <relativesize width="0.498173277661795" height="0.248369058713886" centerx="0.250652400835073" centery="0.375349487418453" posx="0.00156576200417537" posy="0.25116495806151" leftx="0.00156576200417537" lefty="0.499534016775396" rightx="0.499739039665971" righty="0.499534016775396" fixaspect="false" lockpostodata="false"/>
                 <transform m11="1" m12="0" m13="0" m21="0" m22="1" m23="0" m31="0" m32="0" m33="1"/>
                 <pen style="1" width="1" miterlimit="2" cap="16" joinStyle="64">
@@ -226,9 +226,9 @@
                 </pen>
                 <brush color="#ffffff" style="1"/>
                 <legend auto="true" title="" font="Tahoma,10,-1,5,50,0,0,0,0,0" fontscale="6.78822509939086" color="#000000" verticaldisplay="false" name="Legend">
-                    <position x="198.055421980131" y="32.8246952705995" z="500"/>
+                    <position x="143.947015853145" y="32.8013932637137" z="500"/>
                     <rect x="0" y="0" width="162" height="30"/>
-                    <relativesize width="0.21190320470896" height="0.172413793103448" centerx="0.140033253080617" centery="0.18002698431379" posx="0.0340816507261365" posy="0.0938200877620659" leftx="0.0340816507261365" lefty="0.266233880865514" rightx="0.245984855435097" righty="0.266233880865514" fixaspect="false" lockpostodata="false"/>
+                    <relativesize width="0.197560535502142" height="0.172660249791483" centerx="0.132861918477208" centery="0.180150212657808" posx="0.0340816507261365" posy="0.0938200877620669" leftx="0.0340816507261365" lefty="0.26648033755355" rightx="0.231642186228279" righty="0.26648033755355" fixaspect="false" lockpostodata="false"/>
                     <transform m11="1" m12="0" m13="0" m21="0" m22="1" m23="0" m31="0" m32="0" m33="1"/>
                     <pen style="1" width="1" miterlimit="2" cap="16" joinStyle="64">
                         <brush color="#000000" style="1"/>
@@ -249,21 +249,21 @@
                 <plotlabel id="toplabel" visible="true" overridetext="" autolabel="true" font="Tahoma,10,-1,5,50,0,0,0,0,0" fontscale="11.3137084989848" fontcolor="#000000" fontuseglobal="true"/>
                 <plotlabel id="bottomlabel" visible="true" overridetext="" autolabel="true" font="Tahoma,10,-1,5,50,0,0,0,0,0" fontscale="11.3137084989848" fontcolor="#000000" fontuseglobal="true"/>
                 <plotlabel id="numberlabel" visible="true" overridetext="" autolabel="true" font="Tahoma,10,-1,5,50,0,0,0,0,0" fontscale="11.3137084989848" fontcolor="#000000" fontuseglobal="true"/>
-                <projectionrect x="5553" y="0" width="299" height="1"/>
+                <projectionrect x="200" y="-4" width="299" height="8"/>
             </plot>
-            <plot tiedxzoom="false" tiedyzoom="false" leftlabelvisible="true" bottomlabelvisible="true" rightlabelvisible="true" toplabelvisible="true" globalfont="Tahoma [MS],12,-1,5,50,0,0,0,0,0" globalfontscale="11.3137084989848" globalfontcolor="#000000" showlegend="true" hidebottomaxislabel="false" hidetopaxislabel="false" hideleftaxislabel="false" hiderightaxislabel="false" numberaxislabelscale="true" initialPlotNum="5" name="Plot">
-                <position x="3" y="536" z="500"/>
-                <rect x="0" y="0" width="954.5" height="266.5"/>
-                <relativesize width="0.498173277661795" height="0.248369058713886" centerx="0.250652400835073" centery="0.623718546132339" posx="0.00156576200417537" posy="0.499534016775396" leftx="0.00156576200417537" lefty="0.747903075489282" rightx="0.499739039665971" righty="0.747903075489282" fixaspect="false" lockpostodata="false"/>
+            <plot tiedxzoom="true" tiedyzoom="true" leftlabelvisible="true" bottomlabelvisible="true" rightlabelvisible="true" toplabelvisible="true" globalfont="Tahoma [MS],12,-1,5,50,0,0,0,0,0" globalfontscale="11.3" globalfontcolor="#000000" showlegend="true" hidebottomaxislabel="false" hidetopaxislabel="false" hideleftaxislabel="false" hiderightaxislabel="false" numberaxislabelscale="true" initialPlotNum="5" name="Plot">
+                <position x="480.3396" y="668.7306" z="500"/>
+                <rect x="-477.2756" y="-133.2666" width="954.053" height="266.2848"/>
+                <relativesize width="0.4982" height="0.2484" centerx="0.2507" centery="0.6237" posx="0.00159999999999998" posy="0.4995" leftx="0.00159999999999998" lefty="0.7479" rightx="0.4998" righty="0.7479" fixaspect="false" lockpostodata="false"/>
                 <transform m11="1" m12="0" m13="0" m21="0" m22="1" m23="0" m31="0" m32="0" m33="1"/>
                 <pen style="1" width="1" miterlimit="2" cap="16" joinStyle="64">
                     <brush color="#000000" style="1"/>
                 </pen>
                 <brush color="#ffffff" style="1"/>
                 <legend auto="true" title="" font="Tahoma,10,-1,5,50,0,0,0,0,0" fontscale="6.78822509939086" color="#000000" verticaldisplay="false" name="Legend">
-                    <position x="198.055421980163" y="32.8246952705997" z="500"/>
-                    <rect x="0" y="0" width="266" height="30"/>
-                    <relativesize width="0.347939829954218" height="0.172413793103448" centerx="0.208051565703287" centery="0.180026984313791" posx="0.0340816507261779" posy="0.0938200877620673" leftx="0.0340816507261779" lefty="0.266233880865516" rightx="0.382021480680396" righty="0.266233880865516" fixaspect="false" lockpostodata="false"/>
+                    <position x="-333.326840077046" y="-100.462094812287" z="500"/>
+                    <rect x="0" y="0" width="135" height="30"/>
+                    <relativesize width="0.164623506041683" height="0.172627295367604" centerx="0.116393403747019" centery="0.18013373544587" posx="0.0340816507261775" posy="0.0938200877620682" leftx="0.0340816507261775" lefty="0.266447383129672" rightx="0.19870515676786" righty="0.266447383129672" fixaspect="false" lockpostodata="false"/>
                     <transform m11="1" m12="0" m13="0" m21="0" m22="1" m23="0" m31="0" m32="0" m33="1"/>
                     <pen style="1" width="1" miterlimit="2" cap="16" joinStyle="64">
                         <brush color="#000000" style="1"/>
@@ -272,7 +272,6 @@
                 </legend>
                 <cartesianrender name="Cartesian Plot" type="1">
                     <relation tag="Speed vs INDEX (C6)"/>
-                    <relation tag="sError vs INDEX (C7)"/>
                 </cartesianrender>
                 <plotaxis id="xaxis" visible="true" log="false" reversed="false" autobaseoffset="true" baseoffset="false" forceoffsetmin="false" interpret="false" interpretation="1" display="4" displayformatstring="hh:mm:ss.zzz" majortickmode="5" minortickcount="5" autominortickcount="true" drawmajorticks="true" drawminorticks="true" drawmajorgridlines="true" drawminorgridlines="false" drawmajorgridlinecolor="#a0a0a4" drawminorgridlinecolor="#a0a0a4" drawmajorgridlinestyle="2" drawminorgridlinestyle="2" drawmajorgridlinewidth="1" drawminorgridlinewidth="1" significantdigits="9" rotation="0" zoommode="0" timezonename="GMT" timezoneoffset="0">
                     <plotmarkers xaxis="true" linecolor="#000000" linestyle="1" linewidth="1" curvemode="-1250583"/>
@@ -280,16 +279,16 @@
                 <plotaxis id="yaxis" visible="true" log="false" reversed="false" autobaseoffset="true" baseoffset="false" forceoffsetmin="false" interpret="false" interpretation="1" display="4" displayformatstring="hh:mm:ss.zzz" majortickmode="5" minortickcount="5" autominortickcount="true" drawmajorticks="true" drawminorticks="true" drawmajorgridlines="true" drawminorgridlines="false" drawmajorgridlinecolor="#a0a0a4" drawminorgridlinecolor="#a0a0a4" drawmajorgridlinestyle="2" drawminorgridlinestyle="2" drawmajorgridlinewidth="1" drawminorgridlinewidth="1" significantdigits="9" rotation="0" zoommode="3" timezonename="GMT" timezoneoffset="0">
                     <plotmarkers xaxis="false" linecolor="#000000" linestyle="1" linewidth="1" curvemode="-1250583"/>
                 </plotaxis>
-                <plotlabel id="leftlabel" visible="true" overridetext="" autolabel="true" font="Tahoma [MS],12,-1,5,50,0,0,0,0,0" fontscale="11.3137084989848" fontcolor="#000000" fontuseglobal="true"/>
-                <plotlabel id="rightlabel" visible="true" overridetext="" autolabel="true" font="Tahoma [MS],12,-1,5,50,0,0,0,0,0" fontscale="11.3137084989848" fontcolor="#000000" fontuseglobal="true"/>
-                <plotlabel id="toplabel" visible="true" overridetext="" autolabel="true" font="Tahoma [MS],12,-1,5,50,0,0,0,0,0" fontscale="11.3137084989848" fontcolor="#000000" fontuseglobal="true"/>
-                <plotlabel id="bottomlabel" visible="true" overridetext="INDEX" autolabel="true" font="Tahoma [MS],12,-1,5,50,0,0,0,0,0" fontscale="11.3137084989848" fontcolor="#000000" fontuseglobal="true"/>
-                <plotlabel id="numberlabel" visible="true" overridetext="" autolabel="false" font="Tahoma [MS],12,-1,5,50,0,0,0,0,0" fontscale="11.3137084989848" fontcolor="#000000" fontuseglobal="true"/>
-                <projectionrect x="5553" y="-62500" width="299" height="62562"/>
+                <plotlabel id="leftlabel" visible="true" overridetext="Speed" autolabel="true" font="Tahoma [MS],12,-1,5,50,0,0,0,0,0" fontscale="11.3" fontcolor="#000000" fontuseglobal="true"/>
+                <plotlabel id="rightlabel" visible="true" overridetext="" autolabel="true" font="Tahoma [MS],12,-1,5,50,0,0,0,0,0" fontscale="11.3" fontcolor="#000000" fontuseglobal="true"/>
+                <plotlabel id="toplabel" visible="true" overridetext="" autolabel="true" font="Tahoma [MS],12,-1,5,50,0,0,0,0,0" fontscale="11.3" fontcolor="#000000" fontuseglobal="true"/>
+                <plotlabel id="bottomlabel" visible="true" overridetext="INDEX" autolabel="true" font="Tahoma [MS],12,-1,5,50,0,0,0,0,0" fontscale="11.3" fontcolor="#000000" fontuseglobal="true"/>
+                <plotlabel id="numberlabel" visible="true" overridetext="" autolabel="false" font="Tahoma [MS],12,-1,5,50,0,0,0,0,0" fontscale="11.3" fontcolor="#000000" fontuseglobal="true"/>
+                <projectionrect x="200" y="-145" width="299" height="344"/>
             </plot>
-            <plot tiedxzoom="false" tiedyzoom="false" leftlabelvisible="true" bottomlabelvisible="true" rightlabelvisible="true" toplabelvisible="true" globalfont="Tahoma [MS],12,-1,5,50,0,0,0,0,0" globalfontscale="11.3137084989848" globalfontcolor="#000000" showlegend="false" hidebottomaxislabel="false" hidetopaxislabel="false" hideleftaxislabel="false" hiderightaxislabel="false" numberaxislabelscale="true" initialPlotNum="12" name="Plot">
-                <position x="3" y="802.5" z="500"/>
-                <rect x="0" y="0" width="954.5" height="266.5"/>
+            <plot tiedxzoom="true" tiedyzoom="true" leftlabelvisible="true" bottomlabelvisible="true" rightlabelvisible="true" toplabelvisible="true" globalfont="Tahoma [MS],12,-1,5,50,0,0,0,0,0" globalfontscale="11.3137084989848" globalfontcolor="#000000" showlegend="false" hidebottomaxislabel="false" hidetopaxislabel="false" hideleftaxislabel="false" hiderightaxislabel="false" numberaxislabelscale="true" initialPlotNum="12" name="Plot">
+                <position x="2.99843423799582" y="801.752096924511" z="500"/>
+                <rect x="0" y="0" width="954.001826722338" height="266.251630941286"/>
                 <relativesize width="0.498173277661795" height="0.248369058713886" centerx="0.250652400835073" centery="0.872087604846225" posx="0.00156576200417537" posy="0.747903075489282" leftx="0.00156576200417537" lefty="0.996272134203169" rightx="0.499739039665971" righty="0.996272134203169" fixaspect="false" lockpostodata="false"/>
                 <transform m11="1" m12="0" m13="0" m21="0" m22="1" m23="0" m31="0" m32="0" m33="1"/>
                 <pen style="1" width="1" miterlimit="2" cap="16" joinStyle="64">
@@ -297,7 +296,7 @@
                 </pen>
                 <brush color="#ffffff" style="1"/>
                 <legend auto="true" title="" font="Tahoma,10,-1,5,50,0,0,0,0,0" fontscale="12" color="#000000" verticaldisplay="false" name="Legend">
-                    <position x="195.4625" y="39.9625" z="500"/>
+                    <position x="141.165850699114" y="39.9290094308042" z="500"/>
                     <rect x="0" y="0" width="0" height="0"/>
                     <relativesize width="0" height="0" centerx="0.0306899934597776" centery="0.134841954022989" posx="0.0306899934597776" posy="0.134841954022989" leftx="0.0306899934597776" lefty="0.134841954022989" rightx="0.0306899934597776" righty="0.134841954022989" fixaspect="false" lockpostodata="false"/>
                     <transform m11="1" m12="0" m13="0" m21="0" m22="1" m23="0" m31="0" m32="0" m33="1"/>
@@ -312,7 +311,7 @@
                 <plotaxis id="xaxis" visible="true" log="false" reversed="false" autobaseoffset="true" baseoffset="false" forceoffsetmin="false" interpret="false" interpretation="1" display="4" displayformatstring="hh:mm:ss.zzz" majortickmode="5" minortickcount="5" autominortickcount="true" drawmajorticks="true" drawminorticks="true" drawmajorgridlines="true" drawminorgridlines="false" drawmajorgridlinecolor="#a0a0a4" drawminorgridlinecolor="#a0a0a4" drawmajorgridlinestyle="2" drawminorgridlinestyle="2" drawmajorgridlinewidth="1" drawminorgridlinewidth="1" significantdigits="9" rotation="0" zoommode="0" timezonename="GMT" timezoneoffset="0">
                     <plotmarkers xaxis="true" linecolor="#000000" linestyle="1" linewidth="1" curvemode="1"/>
                 </plotaxis>
-                <plotaxis id="yaxis" visible="true" log="false" reversed="false" autobaseoffset="true" baseoffset="false" forceoffsetmin="false" interpret="false" interpretation="1" display="4" displayformatstring="hh:mm:ss.zzz" majortickmode="5" minortickcount="5" autominortickcount="true" drawmajorticks="true" drawminorticks="true" drawmajorgridlines="true" drawminorgridlines="false" drawmajorgridlinecolor="#a0a0a4" drawminorgridlinecolor="#a0a0a4" drawmajorgridlinestyle="2" drawminorgridlinestyle="2" drawmajorgridlinewidth="1" drawminorgridlinewidth="1" significantdigits="9" rotation="0" zoommode="1" timezonename="GMT" timezoneoffset="0">
+                <plotaxis id="yaxis" visible="true" log="false" reversed="false" autobaseoffset="true" baseoffset="false" forceoffsetmin="false" interpret="false" interpretation="1" display="4" displayformatstring="hh:mm:ss.zzz" majortickmode="5" minortickcount="5" autominortickcount="true" drawmajorticks="true" drawminorticks="true" drawmajorgridlines="true" drawminorgridlines="false" drawmajorgridlinecolor="#a0a0a4" drawminorgridlinecolor="#a0a0a4" drawmajorgridlinestyle="2" drawminorgridlinestyle="2" drawmajorgridlinewidth="1" drawminorgridlinewidth="1" significantdigits="9" rotation="0" zoommode="3" timezonename="GMT" timezoneoffset="0">
                     <plotmarkers xaxis="false" linecolor="#000000" linestyle="1" linewidth="1" curvemode="-768110193"/>
                 </plotaxis>
                 <plotlabel id="leftlabel" visible="true" overridetext="" autolabel="true" font="Tahoma [MS],12,-1,5,50,0,0,0,0,0" fontscale="11.3137084989848" fontcolor="#000000" fontuseglobal="true"/>
@@ -320,7 +319,7 @@
                 <plotlabel id="toplabel" visible="true" overridetext="" autolabel="true" font="Tahoma [MS],12,-1,5,50,0,0,0,0,0" fontscale="11.3137084989848" fontcolor="#000000" fontuseglobal="true"/>
                 <plotlabel id="bottomlabel" visible="true" overridetext="" autolabel="true" font="Tahoma [MS],12,-1,5,50,0,0,0,0,0" fontscale="11.3137084989848" fontcolor="#000000" fontuseglobal="true"/>
                 <plotlabel id="numberlabel" visible="true" overridetext="" autolabel="true" font="Tahoma [MS],12,-1,5,50,0,0,0,0,0" fontscale="11.3137084989848" fontcolor="#000000" fontuseglobal="true"/>
-                <projectionrect x="5553" y="-0.105" width="299" height="0.21"/>
+                <projectionrect x="200" y="-10" width="299" height="20"/>
             </plot>
         </view>
     </graphics>

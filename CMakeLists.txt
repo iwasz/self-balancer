@@ -17,17 +17,21 @@ ADD_EXECUTABLE(${CMAKE_PROJECT_NAME}.elf
         "../libmicro/src/ErrorHandler.c"
         "../libmicro/src/Hal.h"
         "../libmicro/src/HalStm32F4.h"
-        "../libmicro/src/HalStm32F4.cc"
-        "../libmicro/src/Timer.cc"
+        "../libmicro/src/TimerF.cc"
         "../libmicro/src/Timer.h"
         "../libmicro/src/Debug.cc"
         "../libmicro/src/Debug.h"
         "../libmicro/src/debug.h"
-        "../libmicro/src/Gpio.cc"
+        "../libmicro/src/GpioF.cc"
+        "../libmicro/src/GpioF.h"
+        "../libmicro/src/GpioF4.cc"
         "../libmicro/src/Gpio.h"
-        "../libmicro/src/Spi.cc"
+        "../libmicro/src/SpiF4.cc"
+        "../libmicro/src/SpiF.cc"
+        "../libmicro/src/SpiF.h"
         "../libmicro/src/Spi.h"
-        "../libmicro/src/I2c.cc"
+        "../libmicro/src/I2cF4.cc"
+        "../libmicro/src/I2cF4.h"
         "../libmicro/src/I2c.h"
         "../libmicro/src/Pwm.cc"
         "../libmicro/src/Pwm.h"
@@ -37,7 +41,9 @@ ADD_EXECUTABLE(${CMAKE_PROJECT_NAME}.elf
         "../libmicro/src/rf/Nrf24L01P.h"
         "../libmicro/src/rf/SymaX5HWRxProtocol.cc"
         "../libmicro/src/rf/SymaX5HWRxProtocol.h"
-        "../libmicro/src/Usart.cc"
+        "../libmicro/src/UsartF.cc"
+        "../libmicro/src/UsartF4.cc"
+        "../libmicro/src/UsartF.h"
         "../libmicro/src/Usart.h"
         "../libmicro/src/actuators/BrushedMotor.h"
         "../libmicro/src/actuators/BrushedMotor.cc"
@@ -253,11 +259,11 @@ add_library ("stm" STATIC
 )
 
 
-TARGET_LINK_LIBRARIES (${CMAKE_PROJECT_NAME}.elf stdc++)
-TARGET_LINK_LIBRARIES (${CMAKE_PROJECT_NAME}.elf m)
+#TARGET_LINK_LIBRARIES (${CMAKE_PROJECT_NAME}.elf stdc++)
+#TARGET_LINK_LIBRARIES (${CMAKE_PROJECT_NAME}.elf m)
 TARGET_LINK_LIBRARIES (${CMAKE_PROJECT_NAME}.elf -Wl,--whole-archive stm -Wl,--no-whole-archive)
 
-ADD_CUSTOM_TARGET(${CMAKE_PROJECT_NAME}.bin ALL DEPENDS ${CMAKE_PROJECT_NAME}.elf COMMAND ${CMAKE_OBJCOPY} -Obinary ${CMAKE_PROJECT_NAME}.elf ${CMAKE_PROJECT_NAME}.bin)
+#ADD_CUSTOM_TARGET(${CMAKE_PROJECT_NAME}.bin ALL DEPENDS ${CMAKE_PROJECT_NAME}.elf COMMAND ${CMAKE_OBJCOPY} -Obinary ${CMAKE_PROJECT_NAME}.elf ${CMAKE_PROJECT_NAME}.bin)
 
-FIND_PROGRAM (ST_FLASH st-flash)
-ADD_CUSTOM_TARGET("upload" DEPENDS ${CMAKE_PROJECT_NAME}.elf COMMAND ${ST_FLASH} --reset write ${CMAKE_PROJECT_NAME}.bin 0x8000000)
+#FIND_PROGRAM (ST_FLASH st-flash)
+#ADD_CUSTOM_TARGET("upload" DEPENDS ${CMAKE_PROJECT_NAME}.elf COMMAND ${ST_FLASH} --reset write ${CMAKE_PROJECT_NAME}.bin 0x8000000)
