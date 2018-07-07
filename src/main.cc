@@ -25,6 +25,8 @@
 #include <cerrno>
 #include <cmath>
 #include <cstring>
+#include <imu/lsm6ds3/Lsm6ds3.h>
+#include <imu/lsm6ds3/Lsm6ds3SpiBsp.h>
 
 #ifndef M_PI
 #define M_PI 3.14159265358979323846
@@ -34,6 +36,7 @@ const uint8_t ADDRESS_P1[] = { 0xc2, 0xc2, 0xc2, 0xc2, 0xc2 };
 const uint8_t CX10_ADDRESS[] = { 0xcc, 0xcc, 0xcc, 0xcc, 0xcc };
 #define PACKET_SIZE 5
 #define CHANNEL 100
+#define RADIO 1
 
 /*****************************************************************************/
 
@@ -53,6 +56,7 @@ int main ()
 {
         HAL_Init ();
         SystemClock_Config ();
+        HAL_Delay (100);
 
         Gpio uartGpios (GPIOB, GPIO_PIN_7 | GPIO_PIN_6, GPIO_MODE_AF_OD, GPIO_PULLUP, GPIO_SPEED_FREQ_HIGH, GPIO_AF7_USART3);
         HAL_NVIC_SetPriority (USART1_IRQn, 6, 0);
@@ -63,6 +67,8 @@ int main ()
         Debug::singleton () = &debug;
         Debug *d = Debug::singleton ();
         d->print ("Self-balancer here\n");
+
+        Gpio led (GPIOE, GPIO_PIN_2);
 
         /*+-------------------------------------------------------------------------+*/
         /*| NRF24L01+                                                               |*/
@@ -75,20 +81,26 @@ int main ()
         HAL_NVIC_SetPriority (EXTI1_IRQn, 3, 0);
         HAL_NVIC_EnableIRQ (EXTI1_IRQn);
 
-        Gpio spiTxGpiosNss (GPIOD, GPIO_PIN_2, GPIO_MODE_OUTPUT_OD, GPIO_PULLUP);
+        Gpio spiTxGpiosNss (GPIOD, GPIO_PIN_2, GPIO_MODE_OUTPUT_PP);
+        spiTxGpiosNss.set (true);
+
         /// PB3 = SCK, PB4 = MISO, PB5 = MOSI
         Gpio spiTxGpiosMisoMosiSck (GPIOB, GPIO_PIN_3 | GPIO_PIN_4 | GPIO_PIN_5, GPIO_MODE_AF_PP, GPIO_NOPULL, GPIO_SPEED_FREQ_HIGH,
                                     GPIO_AF5_SPI1);
+
         Spi spiTx (SPI1);
         spiTx.setNssGpio (&spiTxGpiosNss);
 
         //#define SYMA_RX
 
+#ifdef RADIO
 #ifndef SYMA_RX
-        Nrf24L01P nrfTx (&spiTx, &ceTx, &irqTxNrf, 50);
+        Nrf24L01P nrfTx (&spiTx, &ceTx, &irqTxNrf, 100);
         nrfTx.setConfig (Nrf24L01P::MASK_TX_DS, true, Nrf24L01P::CRC_LEN_2);
         nrfTx.setTxAddress (ADDRESS_P1, 5);
+        nrfTx.readRegister (Nrf24L01P::TX_ADDR);
         nrfTx.setRxAddress (0, ADDRESS_P1, 5);
+        nrfTx.readRegister (Nrf24L01P::RX_ADDR_P0);
         nrfTx.setAutoAck (Nrf24L01P::ENAA_P0 | Nrf24L01P::ENAA_P1);
         nrfTx.setEnableDataPipe (Nrf24L01P::ERX_P0 | Nrf24L01P::ERX_P1);
         nrfTx.setAdressWidth (Nrf24L01P::WIDTH_5);
@@ -232,33 +244,32 @@ int main ()
 
         nrfRx.setCallback (&syma);
 #endif
+#endif // RADIO
 
 #if 1
         /*+-------------------------------------------------------------------------+*/
         /*| MPU6050                                                                 |*/
         /*+-------------------------------------------------------------------------+*/
 
-        // Not used right now
-        //        Gpio irqRxMpu (GPIOB, GPIO_PIN_9, GPIO_MODE_IT_FALLING, GPIO_PULLUP);
-        //        HAL_NVIC_SetPriority (EXTI9_5_IRQn, 3, 0);
-        //        HAL_NVIC_EnableIRQ (EXTI9_5_IRQn);
+        Spi accelerometerSpi (spiTx);
+        Gpio accelerometerNss (GPIOE, GPIO_PIN_0);
+        accelerometerSpi.setNssGpio (&accelerometerNss);
 
-        Gpio i2cPins (GPIOB, GPIO_PIN_10 | GPIO_PIN_11, GPIO_MODE_AF_OD, GPIO_PULLUP, GPIO_SPEED_FREQ_HIGH, GPIO_AF4_I2C2);
-        I2c i2c (I2C2);
-        Mpu6050 mpu6050 (&i2c);
-        mpu6050.setFullScaleGyroRange (MPU6050_GYRO_FS_250);
-        mpu6050.setFullScaleAccelRange (MPU6050_ACCEL_FS_2);
-        // mpu6050.setRate (79);
-        mpu6050.setRate (7);
+        Lsm6ds3SpiBsp bsp (&accelerometerSpi);
+        Lsm6ds3 lsm (&bsp);
 
-        if (mpu6050.testConnection ()) {
-                d->print ("MPU 6050 OK");
-        }
-        else {
-                d->print ("MPU 6050 Fail");
+        lsm.softwareReset ();
+        lsm.setI2cEnable (false);
+
+        if (lsm.getWhoAmI () != Lsm6ds3::WHO_AM_I_ADDRESS) {
+                Error_Handler ();
         }
 
-        mpu6050.setTempSensorEnabled (true);
+        lsm.setBdu (Lsm6ds3::BLOCK_UPDATE);
+        lsm.setGyroFullScale (Lsm6ds3::FS_245dps);
+        lsm.setGyroOdr (Lsm6ds3::GYRO_ODR_1660Hz);
+        lsm.setAccelFullScale (Lsm6ds3::FS_2G);
+        lsm.setAccelOdr (Lsm6ds3::ACCEL_ODR_1660Hz);
 
         /*+-------------------------------------------------------------------------+*/
         /*| Motors                                                                  |*/
@@ -269,7 +280,7 @@ int main ()
         // TIM1 -> APB2 (84MHz) -> but CK_INT = 168MHz
         Pwm pwmLeft (TIM1, 42 - 1, PWM_PERIOD - 1);
         pwmLeft.enableChannels (Pwm::CHANNEL2);
-        Gpio directionLeftPin (GPIOE, GPIO_PIN_9);
+        Gpio directionLeftPin (GPIOC, GPIO_PIN_5);
         Gpio pwmLeftPin (GPIOE, GPIO_PIN_11, GPIO_MODE_AF_PP, GPIO_NOPULL, GPIO_SPEED_FREQ_LOW, GPIO_AF1_TIM1);
         BrushedMotor motorLeft (&directionLeftPin, &pwmLeft, Pwm::CHANNEL2, PWM_PERIOD);
         motorLeft.setPwmInvert (true);
@@ -389,7 +400,8 @@ int main ()
         HAL_Delay (100);
 
         d->print ("Temp : ");
-        d->print (int(mpu6050.getTemperature ()));
+        //        d->print (int(mpu6050.getTemperature ()));
+        d->print (int(lsm.getTemperature ()));
         d->print ("\n");
 
         HAL_Delay (100);
@@ -399,7 +411,7 @@ int main ()
 
         uint32_t n = 0;
 
-        const int readoutDelayMs = 1;
+        const int readoutDelayMs = 100;
         const float dt = /*1.0 / readoutDelayMs*/ readoutDelayMs;
         const float iScale = dt, dScale = dt / 100.0;
         const float siScale = dt, sdScale = dt / 100.0;
@@ -424,7 +436,7 @@ int main ()
 
 #ifndef SYMA_RX
 
-#if 1
+#if 0
         class TxCallback : public Nrf24L01PCallback {
         public:
                 virtual ~TxCallback () {}
@@ -494,7 +506,9 @@ int main ()
         txCallback.skd = &skd;
         txCallback.sIntegral = &sIntegral;
 
+#ifdef RADIO
         nrfTx.setCallback (&txCallback);
+#endif
 #endif
 
 #else
@@ -517,7 +531,6 @@ int main ()
         timeControl.start (1000);
         int timeCnt = 0;
 
-        int16_t iax, iay, iaz, igx, igy, igz;
         float ax, ay, az, gx, gy, gz;
         float ofx = 0, ofy = 0, ofz = 0; // Gyro offsets.
         bool sanityBlockade = false;
@@ -525,6 +538,8 @@ int main ()
         // Delay for Madgwick to heat up.
         Timer startupTimer;
         startupTimer.start (5000);
+
+        Timer blinkTimer;
 
         while (1) {
                 if (readout.isExpired ()) {
@@ -576,14 +591,17 @@ int main ()
                         /*| Angle                                                                   |*/
                         /*+-------------------------------------------------------------------------+*/
 
-                        // mpu6050.getMotion6 (&az, &ay, &ax, &gz, &gy, &gx);
-                        mpu6050.getMotion6 (&iaz, &iay, &iax, &igz, &igy, &igx);
-                        ax = iax;
-                        ay = iay;
-                        az = iaz;
-                        gx = igx;
-                        gy = igy;
-                        gz = igz;
+                        IGyroscope::GData gd = lsm.getGData ();
+                        IAccelerometer::AData ad = lsm.getAData ();
+                        // printf ("%d, %d, %d\n", ad.x, ad.y, ad.z);
+                        // printf ("%d, %d, %d\n", gd.x, gd.y, gd.z);
+
+                        ax = ad.x;
+                        ay = ad.y;
+                        az = ad.z;
+                        gx = gd.x;
+                        gy = gd.y;
+                        gz = gd.z;
 
                         // "Calibration"
                         if (++n < 50) {
@@ -611,9 +629,9 @@ int main ()
                                 gy /= (131.0 * 57.2958);
                                 gz /= (131.0 * 57.2958);
 
-                                ax /= 4096.0 * 4; // Scale factor from MPU 6050 docs
-                                ay /= 4096.0 * 4;
-                                az /= 4096.0 * 4;
+                                ax /= 16384; // Scale factor from MPU 6050 docs
+                                ay /= 16384;
+                                az /= 16384;
                         }
 
                         MadgwickAHRSupdateIMU (gx, gy, -gz, ax, ay, az);
@@ -622,7 +640,9 @@ int main ()
                                 continue;
                         }
 
-                        float pitch = asinf (-2.0f * (q1 * q3 - q0 * q2));
+                        float pitch = -asinf (-2.0f * (q1 * q3 - q0 * q2));
+                        printf ("%d, %d, %d, %d, %d, %d, %d\n", int(pitch * 100), int(gx * 100), int(gy * 100), int(gz * 100), int(ax * 100),
+                                int(ay * 100), int(az * 100));
 
                         // PID
                         error = VERTICAL + setPoint - pitch;
@@ -651,8 +671,8 @@ int main ()
                                 sanityBlockade = true;
                         }
 
-                        motorLeft.setSpeed (out);
-                        motorRight.setSpeed (out);
+                        //                        motorLeft.setSpeed (out);
+                        //                        motorRight.setSpeed (out);
 
                         // End
                         readout.start (readoutDelayMs);
@@ -692,7 +712,9 @@ int main ()
                                 memcpy (buf + 12, &integralI, 4);
                                 memcpy (buf + 16, &derivativeI, 4);
                                 memcpy (buf + 20, &outI, 4);
+#ifdef RADIO
                                 nrfTx.transmit (buf, 24);
+#endif
                         }
 #endif
                 }
@@ -707,6 +729,11 @@ int main ()
                         timeControl.start (1000);
                 }
 #endif
+                if (blinkTimer.isExpired ()) {
+                        blinkTimer.start (100);
+                        static bool b = false;
+                        led.set ((b = !b));
+                }
         }
 #endif
 }

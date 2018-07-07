@@ -64,6 +64,14 @@ ADD_EXECUTABLE(${CMAKE_PROJECT_NAME}.elf
          "../libmicro/src/imu/mpu6050/Mpu6050_9Axis_MotionApps41.h"
          "../libmicro/src/imu/mpu6050/Mpu6050.cc"
          "../libmicro/src/imu/mpu6050/Mpu6050.h"
+
+         "../libmicro/src/imu/lsm6ds3/Lsm6ds3.h"
+         "../libmicro/src/imu/lsm6ds3/Lsm6ds3.cc"
+         "../libmicro/src/imu/lsm6ds3/Lsm6ds3Constants.h"
+         "../libmicro/src/imu/lsm6ds3/Lsm6ds3SpiBsp.h"
+         "../libmicro/src/imu/lsm6ds3/Lsm6ds3SpiBsp.cc"
+         "../libmicro/src/imu/lsm6ds3/ILsm6ds3Bsp.h"
+
          "../libmicro/src/collection/Queue.h"
          )
 
