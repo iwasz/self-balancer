@@ -411,7 +411,7 @@ int main ()
 
         uint32_t n = 0;
 
-        const int readoutDelayMs = 100;
+        const int readoutDelayMs = 1;
         const float dt = /*1.0 / readoutDelayMs*/ readoutDelayMs;
         const float iScale = dt, dScale = dt / 100.0;
         const float siScale = dt, sdScale = dt / 100.0;
@@ -541,7 +541,7 @@ int main ()
 
         Timer blinkTimer;
 
-        while (1) {
+        while (true) {
                 if (readout.isExpired ()) {
                         static int i = 0;
                         float speed;
@@ -593,8 +593,6 @@ int main ()
 
                         IGyroscope::GData gd = lsm.getGData ();
                         IAccelerometer::AData ad = lsm.getAData ();
-                        // printf ("%d, %d, %d\n", ad.x, ad.y, ad.z);
-                        // printf ("%d, %d, %d\n", gd.x, gd.y, gd.z);
 
                         ax = ad.x;
                         ay = ad.y;
@@ -625,6 +623,7 @@ int main ()
                                 gy -= ofy;
                                 gz -= ofz;
 
+                                // 57.2958 degrees == 1 radian
                                 gx /= (131.0 * 57.2958); // Scale factor from MPU 6050 docs
                                 gy /= (131.0 * 57.2958);
                                 gz /= (131.0 * 57.2958);
@@ -634,15 +633,19 @@ int main ()
                                 az /= 16384;
                         }
 
-                        MadgwickAHRSupdateIMU (gx, gy, -gz, ax, ay, az);
+                        MadgwickAHRSupdateIMU (gx, gy, gz, ax, ay, az);
 
                         if (!startupTimer.isExpired ()) {
                                 continue;
                         }
 
                         float pitch = -asinf (-2.0f * (q1 * q3 - q0 * q2));
-                        printf ("%d, %d, %d, %d, %d, %d, %d\n", int(pitch * 100), int(gx * 100), int(gy * 100), int(gz * 100), int(ax * 100),
-                                int(ay * 100), int(az * 100));
+
+                        //                        if (n % 100 == 0) {
+                        //                                printf ("%d, %d, %d, %d, %d, %d, %d\n", int(pitch * 1000), int(gx * 100), int(gy *
+                        //                                100), int(gz * 100),
+                        //                                        int(ax * 100), int(ay * 100), int(az * 100));
+                        //                        }
 
                         // PID
                         error = VERTICAL + setPoint - pitch;
@@ -671,8 +674,8 @@ int main ()
                                 sanityBlockade = true;
                         }
 
-                        //                        motorLeft.setSpeed (out);
-                        //                        motorRight.setSpeed (out);
+                        motorLeft.setSpeed (out);
+                        motorRight.setSpeed (out);
 
                         // End
                         readout.start (readoutDelayMs);
