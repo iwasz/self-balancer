@@ -13,6 +13,7 @@
 #include "HardwareTimer.h"
 #include "I2c.h"
 #include "MadgwickAHRS.h"
+#include "MyTelemetry.h"
 #include "Pwm.h"
 #include "Spi.h"
 #include "Timer.h"
@@ -96,22 +97,7 @@ int main ()
 #ifdef RADIO
 #ifndef SYMA_RX
         Nrf24L01P nrfTx (&spiTx, &ceTx, &irqTxNrf, 100);
-        nrfTx.setConfig (Nrf24L01P::MASK_TX_DS, true, Nrf24L01P::CRC_LEN_2);
-        nrfTx.setTxAddress (ADDRESS_P1, 5);
-        nrfTx.readRegister (Nrf24L01P::TX_ADDR);
-        nrfTx.setRxAddress (0, ADDRESS_P1, 5);
-        nrfTx.readRegister (Nrf24L01P::RX_ADDR_P0);
-        nrfTx.setAutoAck (Nrf24L01P::ENAA_P0 | Nrf24L01P::ENAA_P1);
-        nrfTx.setEnableDataPipe (Nrf24L01P::ERX_P0 | Nrf24L01P::ERX_P1);
-        nrfTx.setAdressWidth (Nrf24L01P::WIDTH_5);
-        nrfTx.setChannel (CHANNEL);
-        nrfTx.setAutoRetransmit (Nrf24L01P::WAIT_1000_US, Nrf24L01P::RETRANSMIT_15);
-        nrfTx.setDataRate (Nrf24L01P::MBPS_1, Nrf24L01P::DBM_0);
-        nrfTx.setEnableDynamicPayload (Nrf24L01P::DPL_P0 | Nrf24L01P::DPL_P0);
-        nrfTx.setFeature (Nrf24L01P::EN_DPL | Nrf24L01P::EN_ACK_PAY);
-        HAL_Delay (100);
-        nrfTx.powerUp (Nrf24L01P::TX);
-        HAL_Delay (100);
+        MyTelemetry telemetry (&nrfTx);
 
 #if 0
         class TxCallback : public Nrf24L01PCallback {
@@ -246,7 +232,7 @@ int main ()
 #endif
 #endif // RADIO
 
-#if 1
+
         /*+-------------------------------------------------------------------------+*/
         /*| MPU6050                                                                 |*/
         /*+-------------------------------------------------------------------------+*/
@@ -355,52 +341,11 @@ int main ()
         HAL_NVIC_EnableIRQ (TIM2_IRQn);
         TIM2->CNT = 0;
 
-#if 0
-        //        //        tim3.enableChannels (Pwm::CHANNEL1);
-        //        OutputCompareChannel oc;
-        //        //        oc.setOnIrq ([&] { d->print (".\n"); });
-        //        tim3.onUpdate = [&] { motorLeft.step (1); };
-        //        tim3.setChannel (0, &oc);
-        HAL_NVIC_SetPriority (TIM3_IRQn, 3, 0);
-        HAL_NVIC_EnableIRQ (TIM3_IRQn);
-//        tim3.setDuty (HardwareTimer::CHANNEL1, 2);
-//        tim3.setDuty(HardwareTimer::CHANNEL2, 20000);
-//        tim3.setDuty(HardwareTimer::CHANNEL3, 20000);
-//        tim3.setDuty(HardwareTimer::CHANNEL4, 20000);
-
-        //        Gpio bPhasePinL (GPIOE, GPIO_PIN_9);
-        //        Gpio bEnablePinL (GPIOE, GPIO_PIN_11);
-        //        Gpio aPhasePinL (GPIOB, GPIO_PIN_1);
-        //        Gpio aEnablePinL (GPIOB, GPIO_PIN_0);
-
-        //        BipolarStepper motorLeft (&aPhasePinL, &aEnablePinL, &bPhasePinL, &bEnablePinL, 400);
-
-        //        Gpio bEnablePinR (GPIOA, GPIO_PIN_2);
-        //        Gpio bPhasePinR (GPIOA, GPIO_PIN_1);
-        //        Gpio aEnablePinR (GPIOC, GPIO_PIN_2);
-        //        Gpio aPhasePinR (GPIOC, GPIO_PIN_1);
-
-        //        BipolarStepper motorRight (&aPhasePinR, &aEnablePinR, &bPhasePinR, &bEnablePinR, 400);
-
-        //        tim3.onUpdate = [&motorLeft, &motorRight] {
-        //                motorLeft.timeStep ();
-        //                motorRight.timeStep ();
-        //        };
-
-        //        motorLeft.power (true);
-        //        motorRight.power (true);
-
-        // tim3.onUpdate = [&] { d->print ("."); };
-
-        //        motorLeft.power (true);
-        //        motorLeft.step (-999999);
-        //        motorLeft.power (true);
-#endif
+        /*****************************************************************************/
 
         HAL_Delay (100);
 
         d->print ("Temp : ");
-        //        d->print (int(mpu6050.getTemperature ()));
         d->print (int(lsm.getTemperature ()));
         d->print ("\n");
 
@@ -413,9 +358,8 @@ int main ()
 
         const int readoutDelayMs = 1;
         const float dt = /*1.0 / readoutDelayMs*/ readoutDelayMs;
-        const float iScale = dt, dScale = dt / 100.0;
-        const float siScale = dt, sdScale = dt / 100.0;
-        const float diScale = dt / 1000.0, ddScale = dt * 10;
+        const float iScale = dt, dScale = dt / 100.0f;
+        const float diScale = dt / 1000.0f, ddScale = dt * 10;
 
         float error, prevError, integral, derivative;
         integral = derivative = prevError = 0;
@@ -424,94 +368,29 @@ int main ()
         ki = 15;
         kd = 200;
         float setPoint = 0;
-        const float VERTICAL = 0.03;
+        const float VERTICAL = 0.03f;
 
         float sError, sPrevError, sIntegral, sDerivative;
         sIntegral = sDerivative = sPrevError = 0;
         float skp, ski, skd;
-        skp = 2.0 / 10000.0;
+        skp = 2.0f / 10000.0f;
         ski = 0;
         skd = 0;
         float sSetPoint = 0;
 
 #ifndef SYMA_RX
 
+        telemetry.kp = &kp;
+        telemetry.ki = &ki;
+        telemetry.kd = &kd;
+        telemetry.integral = &integral;
+        telemetry.skp = &skp;
+        telemetry.ski = &ski;
+        telemetry.skd = &skd;
+        telemetry.sIntegral = &sIntegral;
+
+
 #if 0
-        class TxCallback : public Nrf24L01PCallback {
-        public:
-                virtual ~TxCallback () {}
-
-                virtual void onRx (uint8_t *data, size_t len)
-                {
-                        uint8_t command = data[0];
-                        int param = *reinterpret_cast<int *> (data + 1);
-
-                        Debug *d = Debug::singleton ();
-                        d->print ("Command : ");
-                        d->print (&command, 1);
-                        d->print (" ");
-                        d->print (param);
-                        d->print ("\n");
-
-                        switch (command) {
-                        case 'p':
-                                *kp = param * 10.0;
-                                break;
-
-                        case 'i':
-                                *ki = param / 10.0;
-                                break;
-
-                        case 'd':
-                                *kd = param * 10.0;
-                                break;
-
-                        case 'P':
-                                *skp = param / 10000.0;
-                                break;
-
-                        case 'I':
-                                *ski = param / 10000.0;
-                                break;
-
-                        case 'D':
-                                *skd = param / 10000.0;
-                                break;
-
-                        default:
-                                break;
-                        }
-
-                        *sIntegral = *integral = 0;
-                }
-
-                virtual void onTx () {}
-
-                virtual void onMaxRt ()
-                {
-                        Debug *d = Debug::singleton ();
-                        d->print ("nRF MAX_RT!\n");
-                }
-
-                float *kp, *ki, *kd, *integral;
-                float *skp, *ski, *skd, *sIntegral;
-        } txCallback;
-
-        txCallback.kp = &kp;
-        txCallback.ki = &ki;
-        txCallback.kd = &kd;
-        txCallback.integral = &integral;
-        txCallback.skp = &skp;
-        txCallback.ski = &ski;
-        txCallback.skd = &skd;
-        txCallback.sIntegral = &sIntegral;
-
-#ifdef RADIO
-        nrfTx.setCallback (&txCallback);
-#endif
-#endif
-
-#else
 
         syma.onRxValues = [&motorLeft, &motorRight, &d](SymaX5HWRxProtocol::RxValues const &v) {
                 //                motorLeft.power (true);
@@ -551,11 +430,11 @@ int main ()
                         /*+-------------------------------------------------------------------------+*/
 
                         int encoderSum = encoderL + encoderR;
-                        speed = encoderSum / 2.0;
+                        speed = encoderSum / 2.0f;
 
                         // To prevent comparing floats
                         if (encoderSum) {
-                                speed = 100.0 / speed;
+                                speed = 100.0f / speed;
                         }
 
                         // Input capture frezes when it doesn't receive impulses from encoders when motors aren't spinning.
@@ -674,52 +553,14 @@ int main ()
                                 sanityBlockade = true;
                         }
 
-                        motorLeft.setSpeed (out);
-                        motorRight.setSpeed (out);
+                        //                        motorLeft.setSpeed (out);
+                        //                        motorRight.setSpeed (out);
 
                         // End
                         readout.start (readoutDelayMs);
                         ++timeCnt;
 
-#if 1
-                        if (++i % 50 == 0) {
-                                uint8_t buf[32];
-                                int inputValueI;
-                                int errorI;
-                                int integralI;
-                                int derivativeI;
-                                int outI;
-
-                                // 50, 150, 250 ...
-                                if (i % 100 != 0) {
-                                        // Sending ints since reveiver runs on STM32F0 without fp, and cant printf floats.
-                                        inputValueI = pitch * 1000;
-                                        errorI = error * 1000;
-                                        integralI = integral * 100;
-                                        derivativeI = derivative * 100;
-                                        outI = out * 100;
-                                }
-                                //                                 100, 200, 300
-                                else {
-                                        inputValueI = distance;
-                                        // inputValueI = speed * 1000;
-                                        errorI = sError;
-                                        integralI = sIntegral * 100;
-                                        derivativeI = sDerivative * 100;
-                                        outI = setPoint * 10000;
-                                }
-
-                                memcpy (buf, &i, 4);
-                                memcpy (buf + 4, &inputValueI, 4);
-                                memcpy (buf + 8, &errorI, 4);
-                                memcpy (buf + 12, &integralI, 4);
-                                memcpy (buf + 16, &derivativeI, 4);
-                                memcpy (buf + 20, &outI, 4);
-#ifdef RADIO
-                                nrfTx.transmit (buf, 24);
-#endif
-                        }
-#endif
+                        telemetry.send (++i, pitch, error, integral, derivative, out, distance, sError, sIntegral, sDerivative, setPoint);
                 }
 
 #if 1
