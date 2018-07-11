@@ -38,6 +38,8 @@ const uint8_t CX10_ADDRESS[] = { 0xcc, 0xcc, 0xcc, 0xcc, 0xcc };
 #define PACKET_SIZE 5
 #define CHANNEL 100
 #define RADIO 1
+#define SYMA_RX 1
+//#define TELEMETRY 1
 
 /*****************************************************************************/
 
@@ -72,32 +74,61 @@ int main ()
         Gpio led (GPIOE, GPIO_PIN_2);
 
         /*+-------------------------------------------------------------------------+*/
-        /*| NRF24L01+                                                               |*/
+        /*| NRF24L01+ Telemetry                                                     |*/
         /*+-------------------------------------------------------------------------+*/
 
-        Gpio ceTx (GPIOD, GPIO_PIN_0);
-        ceTx.set (false);
+        Gpio ceTelemetry (GPIOD, GPIO_PIN_0);
+        ceTelemetry.set (false);
 
-        Gpio irqTxNrf (GPIOD, GPIO_PIN_1, GPIO_MODE_IT_FALLING, GPIO_PULLUP);
+        Gpio irqTelemetryNrf (GPIOD, GPIO_PIN_1, GPIO_MODE_IT_FALLING, GPIO_PULLUP);
+        Gpio spiTelemetryGpiosNss (GPIOD, GPIO_PIN_2, GPIO_MODE_OUTPUT_PP);
+        spiTelemetryGpiosNss.set (true);
+
+        /// PB3 = SCK, PB4 = MISO, PB5 = MOSI
+        Gpio spiTelemetryGpiosMisoMosiSck (GPIOB, GPIO_PIN_3 | GPIO_PIN_4 | GPIO_PIN_5, GPIO_MODE_AF_PP, GPIO_NOPULL, GPIO_SPEED_FREQ_HIGH,
+                                           GPIO_AF5_SPI1);
+
+        Spi spiTelemetry (SPI1);
+        spiTelemetry.setNssGpio (&spiTelemetryGpiosNss);
+
+        Nrf24L01P nrfTelemetry (&spiTelemetry, &ceTelemetry, &irqTelemetryNrf, 100);
         HAL_NVIC_SetPriority (EXTI1_IRQn, 3, 0);
         HAL_NVIC_EnableIRQ (EXTI1_IRQn);
 
-        Gpio spiTxGpiosNss (GPIOD, GPIO_PIN_2, GPIO_MODE_OUTPUT_PP);
-        spiTxGpiosNss.set (true);
+#ifdef TELEMETRY
+        MyTelemetry telemetry (&nrfTelemetry);
+#endif
 
-        /// PB3 = SCK, PB4 = MISO, PB5 = MOSI
-        Gpio spiTxGpiosMisoMosiSck (GPIOB, GPIO_PIN_3 | GPIO_PIN_4 | GPIO_PIN_5, GPIO_MODE_AF_PP, GPIO_NOPULL, GPIO_SPEED_FREQ_HIGH,
-                                    GPIO_AF5_SPI1);
+        /*+-------------------------------------------------------------------------+*/
+        /*| NRF24L01+ RC                                                            |*/
+        /*+-------------------------------------------------------------------------+*/
 
-        Spi spiTx (SPI1);
-        spiTx.setNssGpio (&spiTxGpiosNss);
+#ifdef SYMA_RX
+        //        Gpio ceRc (GPIOD, GPIO_PIN_8);
+        //        ceRc.set (false);
 
-        //#define SYMA_RX
+        //        Gpio irqRcNrf (GPIOB, GPIO_PIN_12, GPIO_MODE_IT_FALLING, GPIO_PULLUP);
+
+        //        Gpio spiRcGpiosNss (GPIOD, GPIO_PIN_9, GPIO_MODE_OUTPUT_PP);
+        //        spiRcGpiosNss.set (true);
+
+        //        /// PB3 = SCK, PB4 = MISO, PB5 = MOSI
+        //        Gpio spiRcGpiosMisoMosiSck (GPIOB, GPIO_PIN_13 | GPIO_PIN_14 | GPIO_PIN_15, GPIO_MODE_AF_PP, GPIO_NOPULL, GPIO_SPEED_FREQ_HIGH,
+        //                                    GPIO_AF5_SPI2);
+
+        //        Spi spiRc (SPI2);
+        //        spiRc.setNssGpio (&spiRcGpiosNss);
+
+        //        Nrf24L01P nrfRc (&spiRc, &ceRc, /*&irqRcNrf*/nullptr, 100);
+        //        HAL_NVIC_SetPriority (EXTI15_10_IRQn, 3, 0);
+        //        HAL_NVIC_EnableIRQ (EXTI15_10_IRQn);
+
+        //        SymaX5HWRxProtocol syma (&nrfRc);
+        SymaX5HWRxProtocol syma (&nrfTelemetry);
+#endif
 
 #ifdef RADIO
 #ifndef SYMA_RX
-        Nrf24L01P nrfTx (&spiTx, &ceTx, &irqTxNrf, 100);
-        MyTelemetry telemetry (&nrfTx);
 
 #if 0
         class TxCallback : public Nrf24L01PCallback {
@@ -197,47 +228,15 @@ int main ()
                 }
         }
 #endif
-
-#else
-        uint8_t bufRx[SymaX5HWRxProtocol::RX_PACKET_SIZE + 1] = {
-                0x00,
-        };
-
-        /*---------------------------------------------------------------------------*/
-        Nrf24L01P nrfRx (&spiRx, &ceRx, &irqRxNrf, 50);
-
-        nrfRx.setConfig (Nrf24L01P::MASK_NO_IRQ, true, Nrf24L01P::CRC_LEN_2);
-        nrfRx.setTxAddress (SymaX5HWRxProtocol::BIND_ADDR, 5);
-        nrfRx.setRxAddress (0, SymaX5HWRxProtocol::BIND_ADDR, 5);
-        nrfRx.setAutoAck (0);
-        nrfRx.setEnableDataPipe (Nrf24L01P::ERX_P0);
-        nrfRx.setAdressWidth (Nrf24L01P::WIDTH_5);
-        nrfRx.setChannel (SymaX5HWRxProtocol::BIND_CHANNELS[0]);
-        nrfRx.setAutoRetransmit (Nrf24L01P::WAIT_4000_US, Nrf24L01P::RETRANSMIT_15);
-        nrfRx.setPayloadLength (0, SymaX5HWRxProtocol::RX_PACKET_SIZE);
-        nrfRx.setDataRate (Nrf24L01P::KBPS_250, Nrf24L01P::DBM_0);
-
-        HAL_Delay (100);
-        nrfRx.powerUp (Nrf24L01P::RX);
-        HAL_Delay (100);
-
-        SymaX5HWRxProtocol syma (&nrfRx);
-
-        //                nrfRx.setOnData ([&syma, &nrfRx, &bufRx] {
-        //                        uint8_t *out = nrfRx.receive (bufRx, SymaX5HWRxProtocol::RX_PACKET_SIZE);
-        //                        syma.onPacket (out);
-        //                });
-
-        nrfRx.setCallback (&syma);
 #endif
 #endif // RADIO
 
-
         /*+-------------------------------------------------------------------------+*/
-        /*| MPU6050                                                                 |*/
+        /*| IMU                                                                     |*/
         /*+-------------------------------------------------------------------------+*/
 
-        Spi accelerometerSpi (spiTx);
+#ifdef WITH_IMU
+        Spi accelerometerSpi (spiTelemetry);
         Gpio accelerometerNss (GPIOE, GPIO_PIN_0);
         accelerometerSpi.setNssGpio (&accelerometerNss);
 
@@ -256,7 +255,7 @@ int main ()
         lsm.setGyroOdr (Lsm6ds3::GYRO_ODR_1660Hz);
         lsm.setAccelFullScale (Lsm6ds3::FS_2G);
         lsm.setAccelOdr (Lsm6ds3::ACCEL_ODR_1660Hz);
-
+#endif
         /*+-------------------------------------------------------------------------+*/
         /*| Motors                                                                  |*/
         /*+-------------------------------------------------------------------------+*/
@@ -341,14 +340,17 @@ int main ()
         HAL_NVIC_EnableIRQ (TIM2_IRQn);
         TIM2->CNT = 0;
 
-        /*****************************************************************************/
+        /*+-------------------------------------------------------------------------+*/
+        /*| Spaghetti code                                                          |*/
+        /*+-------------------------------------------------------------------------+*/
 
         HAL_Delay (100);
 
+#ifdef WITH_IMU
         d->print ("Temp : ");
         d->print (int(lsm.getTemperature ()));
         d->print ("\n");
-
+#endif
         HAL_Delay (100);
 
         Timer readout;
@@ -378,8 +380,7 @@ int main ()
         skd = 0;
         float sSetPoint = 0;
 
-#ifndef SYMA_RX
-
+#ifdef TELEMETRY
         telemetry.kp = &kp;
         telemetry.ki = &ki;
         telemetry.kd = &kd;
@@ -388,10 +389,9 @@ int main ()
         telemetry.ski = &ski;
         telemetry.skd = &skd;
         telemetry.sIntegral = &sIntegral;
+#endif
 
-
-#if 0
-
+#ifdef SYMA_RX
         syma.onRxValues = [&motorLeft, &motorRight, &d](SymaX5HWRxProtocol::RxValues const &v) {
                 //                motorLeft.power (true);
                 motorLeft.setSpeed (v.throttle);
@@ -404,8 +404,6 @@ int main ()
                 //                }
         };
 #endif
-
-        //        nrfRx.powerUp (Nrf24L01P::RX);
 
         timeControl.start (1000);
         int timeCnt = 0;
@@ -470,8 +468,17 @@ int main ()
                         /*| Angle                                                                   |*/
                         /*+-------------------------------------------------------------------------+*/
 
-                        IGyroscope::GData gd = lsm.getGData ();
-                        IAccelerometer::AData ad = lsm.getAData ();
+                        IGyroscope::GData gd
+#ifdef WITH_IMU
+                                = lsm.getGData ()
+#endif
+                                ;
+
+                        IAccelerometer::AData ad
+#ifdef WITH_IMU
+                                = lsm.getAData ()
+#endif
+                                ;
 
                         ax = ad.x;
                         ay = ad.y;
@@ -560,10 +567,11 @@ int main ()
                         readout.start (readoutDelayMs);
                         ++timeCnt;
 
+#ifdef TELEMETRY
                         telemetry.send (++i, pitch, error, integral, derivative, out, distance, sError, sIntegral, sDerivative, setPoint);
+#endif
                 }
 
-#if 1
                 if (timeControl.isExpired ()) {
                         if (timeCnt < (1000 / readoutDelayMs) - 2) {
                                 printf ("CPU to slow! timeCnt =  %d\n", timeCnt);
@@ -572,14 +580,13 @@ int main ()
                         timeCnt = 0;
                         timeControl.start (1000);
                 }
-#endif
+
                 if (blinkTimer.isExpired ()) {
                         blinkTimer.start (100);
                         static bool b = false;
                         led.set ((b = !b));
                 }
         }
-#endif
 }
 
 /*****************************************************************************/

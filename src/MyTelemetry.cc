@@ -124,6 +124,6 @@ void MyTelemetry::onRx (uint8_t *data, size_t len)
 
 void MyTelemetry::onMaxRt ()
 {
-        Debug *d = Debug::singleton ();
-        d->print ("nRF MAX_RT!\n");
+        // Debug *d = Debug::singleton ();
+        // d->print ("nRF MAX_RT!\n");
 }
