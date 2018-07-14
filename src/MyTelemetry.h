@@ -20,7 +20,7 @@ public:
         MyTelemetry (Nrf24L01P *n);
 
         void send (int i, float pitch, float error, float integral, float derivative, int out, int distance, float sError, float sIntegral,
-                   float sDerivative, float setPoint);
+                   float sDerivative, float setPoint, float speed);
 
         virtual void onRx (uint8_t *data, size_t len);
         virtual void onTx () {}

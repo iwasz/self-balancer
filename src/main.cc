@@ -11,47 +11,33 @@
 #include "Gpio.h"
 #include "Hal.h"
 #include "HardwareTimer.h"
-#include "I2c.h"
 #include "MadgwickAHRS.h"
 #include "MyTelemetry.h"
 #include "Pwm.h"
 #include "Spi.h"
 #include "Timer.h"
 #include "Usart.h"
-#include "actuators/BipolarStepper.h"
 #include "actuators/BrushedMotor.h"
-#include "imu/mpu6050/Mpu6050.h"
+#include "imu/lsm6ds3/Lsm6ds3.h"
+#include "imu/lsm6ds3/Lsm6ds3SpiBsp.h"
 #include "rf/Nrf24L01P.h"
 #include "rf/SymaX5HWRxProtocol.h"
 #include <cerrno>
 #include <cmath>
 #include <cstring>
-#include <imu/lsm6ds3/Lsm6ds3.h>
-#include <imu/lsm6ds3/Lsm6ds3SpiBsp.h>
 
 #ifndef M_PI
 #define M_PI 3.14159265358979323846
 #endif
 
-const uint8_t ADDRESS_P1[] = { 0xc2, 0xc2, 0xc2, 0xc2, 0xc2 };
-const uint8_t CX10_ADDRESS[] = { 0xcc, 0xcc, 0xcc, 0xcc, 0xcc };
-#define PACKET_SIZE 5
-#define CHANNEL 100
 #define RADIO 1
 #define SYMA_RX 1
-//#define TELEMETRY 1
+#define WITH_IMU 1
+#define TELEMETRY 1
 
 /*****************************************************************************/
 
 static void SystemClock_Config (void);
-
-namespace __gnu_cxx {
-void __verbose_terminate_handler ()
-{
-        while (1)
-                ;
-}
-} // namespace __gnu_cxx
 
 /*****************************************************************************/
 
@@ -104,133 +90,27 @@ int main ()
         /*+-------------------------------------------------------------------------+*/
 
 #ifdef SYMA_RX
-        //        Gpio ceRc (GPIOD, GPIO_PIN_8);
-        //        ceRc.set (false);
+        Gpio ceRc (GPIOD, GPIO_PIN_8);
+        ceRc.set (false);
 
-        //        Gpio irqRcNrf (GPIOB, GPIO_PIN_12, GPIO_MODE_IT_FALLING, GPIO_PULLUP);
+        Gpio irqRcNrf (GPIOB, GPIO_PIN_12, GPIO_MODE_IT_FALLING, GPIO_PULLUP);
 
-        //        Gpio spiRcGpiosNss (GPIOD, GPIO_PIN_9, GPIO_MODE_OUTPUT_PP);
-        //        spiRcGpiosNss.set (true);
+        Gpio spiRcGpiosNss (GPIOD, GPIO_PIN_9, GPIO_MODE_OUTPUT_PP);
+        spiRcGpiosNss.set (true);
 
-        //        /// PB3 = SCK, PB4 = MISO, PB5 = MOSI
-        //        Gpio spiRcGpiosMisoMosiSck (GPIOB, GPIO_PIN_13 | GPIO_PIN_14 | GPIO_PIN_15, GPIO_MODE_AF_PP, GPIO_NOPULL, GPIO_SPEED_FREQ_HIGH,
-        //                                    GPIO_AF5_SPI2);
+        /// PB3 = SCK, PB4 = MISO, PB5 = MOSI
+        Gpio spiRcGpiosMisoMosiSck (GPIOB, GPIO_PIN_13 | GPIO_PIN_14 | GPIO_PIN_15, GPIO_MODE_AF_PP, GPIO_NOPULL, GPIO_SPEED_FREQ_HIGH,
+                                    GPIO_AF5_SPI2);
 
-        //        Spi spiRc (SPI2);
-        //        spiRc.setNssGpio (&spiRcGpiosNss);
+        Spi spiRc (SPI2);
+        spiRc.setNssGpio (&spiRcGpiosNss);
 
-        //        Nrf24L01P nrfRc (&spiRc, &ceRc, /*&irqRcNrf*/nullptr, 100);
-        //        HAL_NVIC_SetPriority (EXTI15_10_IRQn, 3, 0);
-        //        HAL_NVIC_EnableIRQ (EXTI15_10_IRQn);
-
-        //        SymaX5HWRxProtocol syma (&nrfRc);
-        SymaX5HWRxProtocol syma (&nrfTelemetry);
-#endif
-
-#ifdef RADIO
-#ifndef SYMA_RX
-
-#if 0
-        class TxCallback : public Nrf24L01PCallback {
-        public:
-                virtual ~TxCallback () {}
-
-                virtual void onRx (uint8_t *data, size_t len)
-                {
-                        Debug *d = Debug::singleton ();
-                        d->print ("nrfTx received : ");
-                        d->printArray (data, len);
-                        d->print ("\n");
-                }
-
-                virtual void onTx () { /*Debug::singleton ()->print ("nrfTx : TX_DS\n");*/}
-
-                virtual void onMaxRt ()
-                {
-                        Debug *d = Debug::singleton ();
-                        d->print ("nrfTx MAX_RT! Unable to send packet!");
-                }
-        } txCallback;
-
-        nrfTx.setCallback (&txCallback);
-
-        /*---------------------------------------------------------------------------*/
-        Gpio ceRx (GPIOE, GPIO_PIN_15);
-        ceRx.set (false);
-
-        Gpio irqRxNrf (GPIOB, GPIO_PIN_11, GPIO_MODE_IT_FALLING, GPIO_PULLUP);
+        Nrf24L01P nrfRc (&spiRc, &ceRc, &irqRcNrf, 100);
         HAL_NVIC_SetPriority (EXTI15_10_IRQn, 3, 0);
         HAL_NVIC_EnableIRQ (EXTI15_10_IRQn);
 
-        Gpio spiRxGpiosNss (GPIOB, GPIO_PIN_12, GPIO_MODE_OUTPUT_OD, GPIO_PULLUP);
-        /// PB13 = SCK, PB14 = MISO, PB15 = MOSI
-        Gpio spiRxGpiosMisoMosiSck (GPIOB, GPIO_PIN_13 | GPIO_PIN_14 | GPIO_PIN_15, GPIO_MODE_AF_PP, GPIO_NOPULL, GPIO_SPEED_FREQ_HIGH,
-                                    GPIO_AF5_SPI2);
-        Spi spiRx (SPI2);
-        spiRx.setNssGpio (&spiRxGpiosNss);
-
-        Nrf24L01P nrfRx (&spiRx, &ceRx, &irqRxNrf, 50);
-        nrfRx.setConfig (Nrf24L01P::MASK_TX_DS, true, Nrf24L01P::CRC_LEN_2);
-        //        nrfRx.setTxAddress (CX10_ADDRESS, 5);
-        //        nrfRx.setRxAddress (0, CX10_ADDRESS, 5);
-        nrfRx.setAutoAck (Nrf24L01P::ENAA_P0 | Nrf24L01P::ENAA_P1);
-        nrfRx.setEnableDataPipe (Nrf24L01P::ERX_P0 | Nrf24L01P::ERX_P1);
-        nrfRx.setAdressWidth (Nrf24L01P::WIDTH_5);
-        nrfRx.setChannel (CHANNEL);
-        //        nrfRx.setPayloadLength (0, PACKET_SIZE);
-        //        nrfRx.setPayloadLength (1, PACKET_SIZE);
-        nrfRx.setDataRate (Nrf24L01P::MBPS_1, Nrf24L01P::DBM_0);
-        nrfRx.setEnableDynamicPayload (Nrf24L01P::DPL_P0 | Nrf24L01P::DPL_P1);
-        nrfRx.setFeature (Nrf24L01P::EN_DPL | Nrf24L01P::EN_ACK_PAY);
-        HAL_Delay (100);
-        nrfRx.powerUp (Nrf24L01P::RX);
-        HAL_Delay (100);
-
-        class RxCallback : public Nrf24L01PCallback {
-        public:
-                virtual ~RxCallback () {}
-
-                virtual void onRx (uint8_t *data, size_t len)
-                {
-                        Debug *d = Debug::singleton ();
-                        d->print ("nrfRx received : ");
-                        d->printArray (data, len);
-                        d->print ("\n");
-                }
-
-                virtual void onTx () { /*Debug::singleton ()->print ("nrfRx : TX_DS\n");*/}
-
-                virtual void onMaxRt ()
-                {
-                        Debug *d = Debug::singleton ();
-                        d->print ("nrfRx MAX_RT");
-                }
-        } rxCallback;
-
-        nrfRx.setCallback (&rxCallback);
-        uint8_t bufTx[PACKET_SIZE] = { 1, 2, 3, 4, 5 };
-        uint8_t ack[PACKET_SIZE] = { 7, 8, 9, 10, 11 };
-
-        Timer timTx;
-        Timer timRx;
-        while (1) {
-
-//                if (timRx.isExpired ()) {
-//                        nrfRx.setAckPayload (1, ack, PACKET_SIZE);
-//                        ++(ack[4]);
-//                        timRx.start (500);
-//                }
-
-                if (timTx.isExpired ()) {
-                        nrfTx.transmit (bufTx, 16);
-                        ++(bufTx[4]);
-                        timTx.start (100);
-                }
-        }
+        SymaX5HWRxProtocol syma (&nrfRc);
 #endif
-#endif
-#endif // RADIO
-
         /*+-------------------------------------------------------------------------+*/
         /*| IMU                                                                     |*/
         /*+-------------------------------------------------------------------------+*/
@@ -396,12 +276,10 @@ int main ()
                 //                motorLeft.power (true);
                 motorLeft.setSpeed (v.throttle);
                 motorRight.setSpeed (v.throttle);
-                d->print (v.throttle);
-                d->print ("\n");
 
-                //                if (v.throttle == 0) {
-                //                        motorLeft.power (false);
-                //                }
+                // if (v.throttle == 0) {
+                //         motorLeft.power (false);
+                // }
         };
 #endif
 
@@ -417,38 +295,45 @@ int main ()
         startupTimer.start (5000);
 
         Timer blinkTimer;
+        //        float speed ;
+        float speed0 = 0;
+        float speed1 = 0;
+        float speed2 = 0;
 
         while (true) {
                 if (readout.isExpired ()) {
                         static int i = 0;
-                        float speed;
+
+                        speed2 = speed1;
+                        speed1 = speed0;
 
                         /*+-------------------------------------------------------------------------+*/
                         /*| Speed                                                                   |*/
                         /*+-------------------------------------------------------------------------+*/
 
                         int encoderSum = encoderL + encoderR;
-                        speed = encoderSum / 2.0f;
+                        speed0 = encoderSum / 2.0f;
 
                         // To prevent comparing floats
                         if (encoderSum) {
-                                speed = 100.0f / speed;
+                                speed0 = 100.0f / speed0;
                         }
 
                         // Input capture frezes when it doesn't receive impulses from encoders when motors aren't spinning.
                         if (out == 0) {
-                                speed = 0;
+                                speed0 = 0;
                         }
 
                         // Encoders in this motor cant sense the direction. So we assume the speed sign is ruled by the motors movement.
                         if (out > 0) {
-                                speed = -speed;
+                                speed0 = -speed0;
                         }
 
                         int distance = -(distanceL + distanceR) / 2;
 
-                        // sError = sSetPoint - speed;
-                        sError = sSetPoint - distance;
+                        float speed = (speed0+speed1+speed2) / 3.0;
+                         sError = sSetPoint + speed;
+//                        sError = sSetPoint - distance;
                         sIntegral += sError * diScale;
 
                         // Simple anti integral windup.
@@ -534,7 +419,7 @@ int main ()
                         //                        }
 
                         // PID
-                        error = VERTICAL + setPoint - pitch;
+                        error = /*VERTICAL +*/ setPoint - pitch;
                         integral += error * iScale;
 
                         // Simple anti integral windup.
@@ -560,15 +445,15 @@ int main ()
                                 sanityBlockade = true;
                         }
 
-                        //                        motorLeft.setSpeed (out);
-                        //                        motorRight.setSpeed (out);
+                        motorLeft.setSpeed (out);
+                        motorRight.setSpeed (out);
 
                         // End
                         readout.start (readoutDelayMs);
                         ++timeCnt;
 
 #ifdef TELEMETRY
-                        telemetry.send (++i, pitch, error, integral, derivative, out, distance, sError, sIntegral, sDerivative, setPoint);
+                        telemetry.send (++i, pitch, error, integral, derivative, out, distance, sError, sIntegral, sDerivative, setPoint, speed0);
 #endif
                 }
 
@@ -640,3 +525,13 @@ void SystemClock_Config () // 16MHz
         /* SysTick_IRQn interrupt configuration */
         HAL_NVIC_SetPriority (SysTick_IRQn, 0, 0);
 }
+
+/*****************************************************************************/
+
+namespace __gnu_cxx {
+void __verbose_terminate_handler ()
+{
+        while (1)
+                ;
+}
+} // namespace __gnu_cxx

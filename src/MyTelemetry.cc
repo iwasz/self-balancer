@@ -34,7 +34,7 @@ MyTelemetry::MyTelemetry (Nrf24L01P *n) : nrf (n)
 /*****************************************************************************/
 
 void MyTelemetry::send (int i, float pitch, float error, float integral, float derivative, int out, int distance, float sError, float sIntegral,
-                        float sDerivative, float setPoint)
+                        float sDerivative, float setPoint, float speed)
 {
         if (i % 50 == 0) {
 
@@ -57,8 +57,9 @@ void MyTelemetry::send (int i, float pitch, float error, float integral, float d
                 //                                 100, 200, 300
                 else {
                         inputValueI = distance;
-                        // inputValueI = speed * 1000;
-                        errorI = int(sError);
+                        // inputValueI = ;
+                        errorI = int(speed * 30000);
+                        // errorI = int(sError);
                         integralI = int(sIntegral * 100);
                         derivativeI = int(sDerivative * 100);
                         outI = int(setPoint * 10000);
