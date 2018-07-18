@@ -27,7 +27,7 @@ public:
         virtual void onMaxRt ();
 
         float *kp, *ki, *kd, *integral;
-        float *skp, *ski, *skd, *sIntegral;
+        float *skp, *ski, *skd, *sIntegral, *VERTICAL;
 
 private:
         Nrf24L01P *nrf;

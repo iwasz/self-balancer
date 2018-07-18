@@ -56,10 +56,8 @@ void MyTelemetry::send (int i, float pitch, float error, float integral, float d
                 }
                 //                                 100, 200, 300
                 else {
-                        inputValueI = distance;
-                        // inputValueI = ;
-                        errorI = int(speed * 30000);
-                        // errorI = int(sError);
+                        inputValueI = int(speed);
+                        errorI = int(sError);
                         integralI = int(sIntegral * 100);
                         derivativeI = int(sDerivative * 100);
                         outI = int(setPoint * 10000);
@@ -90,28 +88,32 @@ void MyTelemetry::onRx (uint8_t *data, size_t len)
         d->print ("\n");
 
         switch (command) {
-        case 'p':
-                *kp = param * 10.0f;
-                break;
+//        case 'p':
+//                *kp = param * 10.0f;
+//                break;
 
-        case 'i':
-                *ki = param / 10.0f;
-                break;
+//        case 'i':
+//                *ki = param / 10.0f;
+//                break;
 
-        case 'd':
-                *kd = param * 10.0f;
-                break;
+//        case 'd':
+//                *kd = param * 10.0f;
+//                break;
 
         case 'P':
-                *skp = param / 10000.0f;
+                *skp = param / 100000.0f;
                 break;
 
         case 'I':
-                *ski = param / 10000.0f;
+                *ski = param / 1000.0f;
                 break;
 
         case 'D':
-                *skd = param / 10000.0f;
+                *skd = param / 100000.0f;
+                break;
+
+        case 'v':
+                *VERTICAL = param / 1000.0f;
                 break;
 
         default:

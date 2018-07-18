@@ -20,6 +20,8 @@
 #include "actuators/BrushedMotor.h"
 #include "imu/lsm6ds3/Lsm6ds3.h"
 #include "imu/lsm6ds3/Lsm6ds3SpiBsp.h"
+#include "numeric/IncrementalAverage.h"
+#include "numeric/RollingAverage.h"
 #include "rf/Nrf24L01P.h"
 #include "rf/SymaX5HWRxProtocol.h"
 #include <cerrno>
@@ -29,6 +31,8 @@
 #ifndef M_PI
 #define M_PI 3.14159265358979323846
 #endif
+
+#define SPEED_READOUT_TIMEOUT_MS 40
 
 #define RADIO 1
 #define SYMA_RX 1
@@ -169,22 +173,41 @@ int main ()
         // PWM for motors.
         int out = 0;
 
-        // TIM3 is APB1 (42MHz) so CK_INT is 84MHz. Prescaler 84 -> counter runs @ 1MHz, period 100 gives us UEV frequency 10kHz
-        HardwareTimer tim2 (TIM2, 84 - 1, 65536 - 1);
+        // TIM2 (32bit) is APB1 (42MHz) so CK_INT is 84MHz. Prescaler 84 -> counter runs @ 1MHz, period 100 gives us UEV frequency 10kHz
+        HardwareTimer tim2 (TIM2, 10 * 84 - 1, 65536 - 1);
         Gpio encoderPins (GPIOA, GPIO_PIN_1 | GPIO_PIN_2, GPIO_MODE_AF_PP, GPIO_PULLDOWN, GPIO_SPEED_FREQ_HIGH, GPIO_AF1_TIM2);
         InputCaptureChannel inputCapture2 (&tim2, 1, true);
 
         uint32_t prevCCR2 = 0;
-        int encoderL = 0;
+        int encoderDelayL = 0;
         int distanceL = 0;
+        RollingAverage speedL (128);
+        //        IncrementalAverage speedL;
 
-        inputCapture2.setOnIrq ([&encoderL, &prevCCR2, &out, &distanceL] {
-                encoderL = TIM2->CCR2 - prevCCR2;
-                prevCCR2 = TIM2->CCR2;
+        inputCapture2.setOnIrq ([&encoderDelayL, &prevCCR2, &out, &distanceL, &speedL] {
+                uint32_t tmpCcr2 = TIM2->CCR2;
+                encoderDelayL = int(tmpCcr2 - prevCCR2);
+                prevCCR2 = tmpCcr2;
 
-                if (encoderL < 0) {
-                        encoderL += 65536;
+                if (encoderDelayL < 0) {
+                        encoderDelayL += 65536;
                 }
+
+                float speed = 0.0f;
+
+                if (encoderDelayL) {
+                        speed = 100000.0f / encoderDelayL;
+                }
+
+                if (out == 0) { // Input capture frezes when it doesn't receive impulses from encoders when motors aren't spinning.
+                        speed = 0;
+                }
+                else if (out
+                         > 0) { // Encoders in this motor cant sense the direction. So we assume the speed sign is ruled by the motors movement.
+                        speed = -speed;
+                }
+
+                speedL.run (speed);
 
                 if (out > 0) {
                         ++distanceL;
@@ -197,16 +220,35 @@ int main ()
         InputCaptureChannel inputCapture3 (&tim2, 2, true);
 
         uint32_t prevCCR3 = 0;
-        int encoderR = 0;
+        int encoderDelayR = 0;
         int distanceR = 0;
+        RollingAverage speedR (128);
+        //        IncrementalAverage speedR;
 
-        inputCapture3.setOnIrq ([&encoderR, &prevCCR3, &out, &distanceR] {
-                encoderR = TIM2->CCR3 - prevCCR3;
-                prevCCR3 = TIM2->CCR3;
+        inputCapture3.setOnIrq ([&encoderDelayR, &prevCCR3, &out, &distanceR, &speedR] {
+                uint32_t tmpCcr3 = TIM2->CCR3;
+                encoderDelayR = tmpCcr3 - prevCCR3;
+                prevCCR3 = tmpCcr3;
 
-                if (encoderR < 0) {
-                        encoderR += 65536;
+                if (encoderDelayR < 0) {
+                        encoderDelayR += 65536;
                 }
+
+                float speed = 0.0f;
+
+                if (encoderDelayR) {
+                        speed = 100000.0f / encoderDelayR;
+                }
+
+                if (out == 0) { // Input capture frezes when it doesn't receive impulses from encoders when motors aren't spinning.
+                        speed = 0;
+                }
+                else if (out
+                         > 0) { // Encoders in this motor cant sense the direction. So we assume the speed sign is ruled by the motors movement.
+                        speed = -speed;
+                }
+
+                speedR.run (speed);
 
                 if (out > 0) {
                         ++distanceR;
@@ -233,7 +275,8 @@ int main ()
 #endif
         HAL_Delay (100);
 
-        Timer readout;
+        Timer imuReadout;
+        Timer speedReadout;
         Timer timeControl;
 
         uint32_t n = 0;
@@ -250,12 +293,12 @@ int main ()
         ki = 15;
         kd = 200;
         float setPoint = 0;
-        const float VERTICAL = 0.03f;
+        /*const*/ float VERTICAL = -0.025f;
 
         float sError, sPrevError, sIntegral, sDerivative;
         sIntegral = sDerivative = sPrevError = 0;
         float skp, ski, skd;
-        skp = 2.0f / 10000.0f;
+        skp = 0; // 4.0f / 100000.0f;
         ski = 0;
         skd = 0;
         float sSetPoint = 0;
@@ -269,18 +312,11 @@ int main ()
         telemetry.ski = &ski;
         telemetry.skd = &skd;
         telemetry.sIntegral = &sIntegral;
+        telemetry.VERTICAL = &VERTICAL;
 #endif
 
 #ifdef SYMA_RX
-        syma.onRxValues = [&motorLeft, &motorRight, &d](SymaX5HWRxProtocol::RxValues const &v) {
-                //                motorLeft.power (true);
-                motorLeft.setSpeed (v.throttle);
-                motorRight.setSpeed (v.throttle);
-
-                // if (v.throttle == 0) {
-                //         motorLeft.power (false);
-                // }
-        };
+        syma.onRxValues = [&setPoint](SymaX5HWRxProtocol::RxValues const &v) { setPoint = v.yaw / 1280.0f; };
 #endif
 
         timeControl.start (1000);
@@ -295,45 +331,44 @@ int main ()
         startupTimer.start (5000);
 
         Timer blinkTimer;
-        //        float speed ;
-        float speed0 = 0;
-        float speed1 = 0;
-        float speed2 = 0;
+
+        speedReadout.start (SPEED_READOUT_TIMEOUT_MS);
+        float speed = 0;
 
         while (true) {
-                if (readout.isExpired ()) {
-                        static int i = 0;
+                /*+-------------------------------------------------------------------------+*/
+                /*| Speed                                                                   |*/
+                /*+-------------------------------------------------------------------------+*/
+                if (speedReadout.isExpired ()) {
 
-                        speed2 = speed1;
-                        speed1 = speed0;
+                        //                        // int encoderSum = encoderL + encoderR;
+                        //                        // speed = encoderSum / 2.0f;
+                        speed = (speedL.getResult () + speedR.getResult ()) / 2.0f;
+                        //                        speed = speedL.getResult ();
+                        //                        // speedL.reset ();
+                        //                        // speedR.reset ();
 
-                        /*+-------------------------------------------------------------------------+*/
-                        /*| Speed                                                                   |*/
-                        /*+-------------------------------------------------------------------------+*/
+                        //                        // To prevent comparing floats
+                        //                        //                        if (encoderSum) {
+                        //                        //                                speed = 100000.0f / speed;
+                        //                        //                        }
+                        //                        if (speed) {
+                        //                                speed = 100000.0f / speed;
+                        //                        }
 
-                        int encoderSum = encoderL + encoderR;
-                        speed0 = encoderSum / 2.0f;
+                        //                        // Input capture frezes when it doesn't receive impulses from encoders when motors aren't
+                        //                        spinning. if (out == 0) {
+                        //                                speed = 0;
+                        //                        }
 
-                        // To prevent comparing floats
-                        if (encoderSum) {
-                                speed0 = 100.0f / speed0;
-                        }
+                        //                        // Encoders in this motor cant sense the direction. So we assume the speed sign is ruled by the
+                        //                        motors movement. if (out > 0) {
+                        //                                speed = -speed;
+                        //                        }
 
-                        // Input capture frezes when it doesn't receive impulses from encoders when motors aren't spinning.
-                        if (out == 0) {
-                                speed0 = 0;
-                        }
+                        // int distance = -(distanceL + distanceR) / 2;
 
-                        // Encoders in this motor cant sense the direction. So we assume the speed sign is ruled by the motors movement.
-                        if (out > 0) {
-                                speed0 = -speed0;
-                        }
-
-                        int distance = -(distanceL + distanceR) / 2;
-
-                        float speed = (speed0+speed1+speed2) / 3.0;
-                         sError = sSetPoint + speed;
-//                        sError = sSetPoint - distance;
+                        sError = sSetPoint - speed;
                         sIntegral += sError * diScale;
 
                         // Simple anti integral windup.
@@ -348,10 +383,14 @@ int main ()
                         // Output of this PID is used as an input of the next.
                         setPoint = skp * sError + ski * sIntegral + skd * sDerivative;
                         sPrevError = sError;
+                        speedReadout.start (SPEED_READOUT_TIMEOUT_MS);
+                }
 
-                        /*+-------------------------------------------------------------------------+*/
-                        /*| Angle                                                                   |*/
-                        /*+-------------------------------------------------------------------------+*/
+                /*+-------------------------------------------------------------------------+*/
+                /*| Angle                                                                   |*/
+                /*+-------------------------------------------------------------------------+*/
+                if (imuReadout.isExpired ()) {
+                        static int i = 0;
 
                         IGyroscope::GData gd
 #ifdef WITH_IMU
@@ -412,14 +451,8 @@ int main ()
 
                         float pitch = -asinf (-2.0f * (q1 * q3 - q0 * q2));
 
-                        //                        if (n % 100 == 0) {
-                        //                                printf ("%d, %d, %d, %d, %d, %d, %d\n", int(pitch * 1000), int(gx * 100), int(gy *
-                        //                                100), int(gz * 100),
-                        //                                        int(ax * 100), int(ay * 100), int(az * 100));
-                        //                        }
-
                         // PID
-                        error = /*VERTICAL +*/ setPoint - pitch;
+                        error = VERTICAL + setPoint - pitch;
                         integral += error * iScale;
 
                         // Simple anti integral windup.
@@ -449,11 +482,12 @@ int main ()
                         motorRight.setSpeed (out);
 
                         // End
-                        readout.start (readoutDelayMs);
+                        imuReadout.start (readoutDelayMs);
                         ++timeCnt;
 
 #ifdef TELEMETRY
-                        telemetry.send (++i, pitch, error, integral, derivative, out, distance, sError, sIntegral, sDerivative, setPoint, speed0);
+                        telemetry.send (++i, pitch, error, integral, derivative, out, 0 /*distance*/, sError, sIntegral, sDerivative, setPoint,
+                                        speed);
 #endif
                 }
 
