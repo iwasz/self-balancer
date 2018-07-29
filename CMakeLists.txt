@@ -66,6 +66,8 @@ ADD_EXECUTABLE(${CMAKE_PROJECT_NAME}.elf
         "../libmicro/src/numeric/IncrementalAverage.cc"
         "../libmicro/src/numeric/RollingAverage.h"
         "../libmicro/src/numeric/RollingAverage.cc"
+        "../libmicro/src/control/PidController.cc"
+        "../libmicro/src/control/PidController.h"
 )
 
 # +--------------+

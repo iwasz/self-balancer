@@ -18,6 +18,7 @@
 #include "Timer.h"
 #include "Usart.h"
 #include "actuators/BrushedMotor.h"
+#include "control/PidController.h"
 #include "imu/lsm6ds3/Lsm6ds3.h"
 #include "imu/lsm6ds3/Lsm6ds3SpiBsp.h"
 #include "numeric/IncrementalAverage.h"
@@ -84,10 +85,6 @@ int main ()
         Nrf24L01P nrfTelemetry (&spiTelemetry, &ceTelemetry, &irqTelemetryNrf, 100);
         HAL_NVIC_SetPriority (EXTI1_IRQn, 3, 0);
         HAL_NVIC_EnableIRQ (EXTI1_IRQn);
-
-#ifdef TELEMETRY
-        MyTelemetry telemetry (&nrfTelemetry);
-#endif
 
         /*+-------------------------------------------------------------------------+*/
         /*| NRF24L01+ RC                                                            |*/
@@ -181,10 +178,10 @@ int main ()
         uint32_t prevCCR2 = 0;
         int encoderDelayL = 0;
         int distanceL = 0;
-        RollingAverage speedL (128);
-        //        IncrementalAverage speedL;
+        float speedL = 0.0f;
+        RollingAverage speedAvgL (4);
 
-        inputCapture2.setOnIrq ([&encoderDelayL, &prevCCR2, &out, &distanceL, &speedL] {
+        inputCapture2.setOnIrq ([&encoderDelayL, &prevCCR2, &out, &distanceL, &speedAvgL, &speedL] {
                 uint32_t tmpCcr2 = TIM2->CCR2;
                 encoderDelayL = int(tmpCcr2 - prevCCR2);
                 prevCCR2 = tmpCcr2;
@@ -193,21 +190,14 @@ int main ()
                         encoderDelayL += 65536;
                 }
 
-                float speed = 0.0f;
-
                 if (encoderDelayL) {
-                        speed = 100000.0f / encoderDelayL;
+                        speedL = 100000.0f / encoderDelayL;
                 }
 
-                if (out == 0) { // Input capture frezes when it doesn't receive impulses from encoders when motors aren't spinning.
-                        speed = 0;
+                if (out > 0) {
+                        speedL = -speedL; // Encoders in this motor cant sense the direction. So we assume the speed sign is ruled by the motors
+                                          // movement.
                 }
-                else if (out
-                         > 0) { // Encoders in this motor cant sense the direction. So we assume the speed sign is ruled by the motors movement.
-                        speed = -speed;
-                }
-
-                speedL.run (speed);
 
                 if (out > 0) {
                         ++distanceL;
@@ -222,33 +212,26 @@ int main ()
         uint32_t prevCCR3 = 0;
         int encoderDelayR = 0;
         int distanceR = 0;
-        RollingAverage speedR (128);
-        //        IncrementalAverage speedR;
+        float speedR = 0.0f;
+        RollingAverage speedAvgR (4);
 
-        inputCapture3.setOnIrq ([&encoderDelayR, &prevCCR3, &out, &distanceR, &speedR] {
+        inputCapture3.setOnIrq ([&encoderDelayR, &prevCCR3, &out, &distanceR, &speedAvgR, &speedR] {
                 uint32_t tmpCcr3 = TIM2->CCR3;
-                encoderDelayR = tmpCcr3 - prevCCR3;
+                encoderDelayR = int(tmpCcr3 - prevCCR3);
                 prevCCR3 = tmpCcr3;
 
                 if (encoderDelayR < 0) {
                         encoderDelayR += 65536;
                 }
 
-                float speed = 0.0f;
-
                 if (encoderDelayR) {
-                        speed = 100000.0f / encoderDelayR;
+                        speedR = 100000.0f / encoderDelayR;
                 }
 
-                if (out == 0) { // Input capture frezes when it doesn't receive impulses from encoders when motors aren't spinning.
-                        speed = 0;
+                if (out > 0) {
+                        speedR = -speedR; // Encoders in this motor cant sense the direction. So we assume the speed sign is ruled by the motors
+                                          // movement.
                 }
-                else if (out
-                         > 0) { // Encoders in this motor cant sense the direction. So we assume the speed sign is ruled by the motors movement.
-                        speed = -speed;
-                }
-
-                speedR.run (speed);
 
                 if (out > 0) {
                         ++distanceR;
@@ -283,40 +266,32 @@ int main ()
 
         const int readoutDelayMs = 1;
         const float dt = /*1.0 / readoutDelayMs*/ readoutDelayMs;
-        const float iScale = dt, dScale = dt / 100.0f;
-        const float diScale = dt / 1000.0f, ddScale = dt * 10;
+        //                const float iScale = dt, dScale = dt / 100.0f;
+        //        const float diScale = dt / 1000.0f, ddScale = dt * 10;
 
-        float error, prevError, integral, derivative;
-        integral = derivative = prevError = 0;
-        float kp, ki, kd;
-        kp = 1000;
-        ki = 15;
-        kd = 200;
-        float setPoint = 0;
-        /*const*/ float VERTICAL = -0.025f;
+        //                float error, prevError, integral, derivative;
+        //                integral = derivative = prevError = 0;
+        //                float kp, ki, kd;
+        //                kp = 1000;
+        //                ki = 15;
+        //                kd = 200;
+        //                float setPoint = 0;
+        //        /*const*/ float VERTICAL = ;
 
         float sError, sPrevError, sIntegral, sDerivative;
         sIntegral = sDerivative = sPrevError = 0;
         float skp, ski, skd;
-        skp = 0; // 4.0f / 100000.0f;
+        skp = 0; // 20.0f / 100000.0f;
         ski = 0;
         skd = 0;
         float sSetPoint = 0;
-
-#ifdef TELEMETRY
-        telemetry.kp = &kp;
-        telemetry.ki = &ki;
-        telemetry.kd = &kd;
-        telemetry.integral = &integral;
-        telemetry.skp = &skp;
-        telemetry.ski = &ski;
-        telemetry.skd = &skd;
-        telemetry.sIntegral = &sIntegral;
-        telemetry.VERTICAL = &VERTICAL;
-#endif
+        int direction = 0;
 
 #ifdef SYMA_RX
-        syma.onRxValues = [&setPoint](SymaX5HWRxProtocol::RxValues const &v) { setPoint = v.yaw / 1280.0f; };
+        syma.onRxValues = [&sSetPoint, &direction](SymaX5HWRxProtocol::RxValues const &v) {
+                sSetPoint = v.yaw * 10.0f;
+                direction = v.roll;
+        };
 #endif
 
         timeControl.start (1000);
@@ -335,37 +310,42 @@ int main ()
         speedReadout.start (SPEED_READOUT_TIMEOUT_MS);
         float speed = 0;
 
+        PidController angleController (25, -0.025f, dt, dt / 100.0f);
+        angleController.setKp (1000);
+        angleController.setKi (15);
+        angleController.setKd (200);
+
+        PidController speedController (100, 0.0f, dt, dt);
+        speedController.setKp (100.0f / 1000.0f);
+        speedController.setKi (80.0f / 1000.0f);
+        speedController.setKd (900 / 1000.0f);
+
+#ifdef TELEMETRY
+        MyTelemetry telemetry (&nrfTelemetry, &angleController, &speedController);
+#endif
+
         while (true) {
                 /*+-------------------------------------------------------------------------+*/
                 /*| Speed                                                                   |*/
                 /*+-------------------------------------------------------------------------+*/
-                if (speedReadout.isExpired ()) {
+                //                if (speedReadout.isExpired ()) {
 
-                        //                        // int encoderSum = encoderL + encoderR;
-                        //                        // speed = encoderSum / 2.0f;
-                        speed = (speedL.getResult () + speedR.getResult ()) / 2.0f;
-                        //                        speed = speedL.getResult ();
-                        //                        // speedL.reset ();
-                        //                        // speedR.reset ();
+                //                        if (out == 0) {
+                //                                /*
+                //                                 * Input capture frezes when it doesn't receive impulses from encoders when motors aren't
+                //                                 spinning,
+                //                                 * so this check (for speed == 0) is moved to main loop, which runs all the time.
+                //                                 *
+                //                                 */
+                //                                speedR = 0;
+                //                                speedL = 0;
+                //                        }
 
-                        //                        // To prevent comparing floats
-                        //                        //                        if (encoderSum) {
-                        //                        //                                speed = 100000.0f / speed;
-                        //                        //                        }
-                        //                        if (speed) {
-                        //                                speed = 100000.0f / speed;
-                        //                        }
+                //                        speedAvgL.run (speedL);
+                //                        speedAvgR.run (speedR);
+                //                        speed = (speedAvgL.getResult () + speedAvgR.getResult ()) / 2.0f;
 
-                        //                        // Input capture frezes when it doesn't receive impulses from encoders when motors aren't
-                        //                        spinning. if (out == 0) {
-                        //                                speed = 0;
-                        //                        }
-
-                        //                        // Encoders in this motor cant sense the direction. So we assume the speed sign is ruled by the
-                        //                        motors movement. if (out > 0) {
-                        //                                speed = -speed;
-                        //                        }
-
+#if 0
                         // int distance = -(distanceL + distanceR) / 2;
 
                         sError = sSetPoint - speed;
@@ -381,10 +361,11 @@ int main ()
 
                         sDerivative = (sError - sPrevError) / ddScale;
                         // Output of this PID is used as an input of the next.
-                        setPoint = skp * sError + ski * sIntegral + skd * sDerivative;
+                        // setPoint = skp * sError + ski * sIntegral + skd * sDerivative;
                         sPrevError = sError;
                         speedReadout.start (SPEED_READOUT_TIMEOUT_MS);
-                }
+#endif
+                //                }
 
                 /*+-------------------------------------------------------------------------+*/
                 /*| Angle                                                                   |*/
@@ -392,17 +373,15 @@ int main ()
                 if (imuReadout.isExpired ()) {
                         static int i = 0;
 
-                        IGyroscope::GData gd
+                        IGyroscope::GData gd;
 #ifdef WITH_IMU
-                                = lsm.getGData ()
+                        gd = lsm.getGData ();
 #endif
-                                ;
 
-                        IAccelerometer::AData ad
+                        IAccelerometer::AData ad;
 #ifdef WITH_IMU
-                                = lsm.getAData ()
+                        ad = lsm.getAData ();
 #endif
-                                ;
 
                         ax = ad.x;
                         ay = ad.y;
@@ -450,44 +429,48 @@ int main ()
                         }
 
                         float pitch = -asinf (-2.0f * (q1 * q3 - q0 * q2));
+                        out = angleController.run (pitch, /*setPoint*/ 0.0f);
 
-                        // PID
-                        error = VERTICAL + setPoint - pitch;
-                        integral += error * iScale;
-
-                        // Simple anti integral windup.
-                        if (integral > 25) {
-                                integral = 25;
-                        }
-                        else if (integral < -25) {
-                                integral = -25;
-                        }
-
-                        derivative = (error - prevError) / dScale;
-                        out = kp * error + ki * integral + kd * derivative;
-                        prevError = error;
-
-                        if (sanityBlockade && (error < 0.002)) {
-                                integral = 0;
+                        if (sanityBlockade && (angleController.getError () < 0.002f)) {
+                                angleController.setIntegral (0);
                                 out = 0;
                                 sanityBlockade = false;
                         }
 
-                        if (sanityBlockade || pitch > 0.6 || pitch < -0.6) {
+                        if (sanityBlockade || pitch > 0.6f || pitch < -0.6f) {
                                 out = 0;
                                 sanityBlockade = true;
                         }
 
-                        motorLeft.setSpeed (out);
-                        motorRight.setSpeed (out);
+                        /*---------------------------------------------------------------------------*/
+
+                        if (out == 0) {
+                                /*
+                                 * Input capture frezes when it doesn't receive impulses from encoders when motors aren't spinning,
+                                 * so this check (for speed == 0) is moved to main loop, which runs all the time.
+                                 *
+                                 */
+                                speedR = 0;
+                                speedL = 0;
+                        }
+
+                        speedAvgL.run (speedL);
+                        speedAvgR.run (speedR);
+                        speed = (speedAvgL.getResult () + speedAvgR.getResult ()) / 2.0f;
+
+                        float out2 = speedController.run (speed, out);
+
+                        /*---------------------------------------------------------------------------*/
+
+                        motorLeft.setSpeed (out2 - direction);
+                        motorRight.setSpeed (out2 + direction);
 
                         // End
                         imuReadout.start (readoutDelayMs);
                         ++timeCnt;
 
 #ifdef TELEMETRY
-                        telemetry.send (++i, pitch, error, integral, derivative, out, 0 /*distance*/, sError, sIntegral, sDerivative, setPoint,
-                                        speed);
+                        telemetry.send (++i, pitch, out, speed, /*out2*/ 0);
 #endif
                 }
 

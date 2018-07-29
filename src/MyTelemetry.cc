@@ -12,7 +12,8 @@
 
 const uint8_t MyTelemetry::ADDRESS[] = { 0xc2, 0xc2, 0xc2, 0xc2, 0xc2 };
 
-MyTelemetry::MyTelemetry (Nrf24L01P *n) : nrf (n)
+MyTelemetry::MyTelemetry (Nrf24L01P *n, PidController *angleController, PidController *speedController)
+    : nrf (n), angleController (angleController), speedController (speedController)
 {
         nrf->setConfig (Nrf24L01P::MASK_TX_DS, true, Nrf24L01P::CRC_LEN_2);
         nrf->setTxAddress (ADDRESS, 5);
@@ -33,8 +34,7 @@ MyTelemetry::MyTelemetry (Nrf24L01P *n) : nrf (n)
 
 /*****************************************************************************/
 
-void MyTelemetry::send (int i, float pitch, float error, float integral, float derivative, int out, int distance, float sError, float sIntegral,
-                        float sDerivative, float setPoint, float speed)
+void MyTelemetry::send (int i, float in1, float out1, float in2, float out2)
 {
         if (i % 50 == 0) {
 
@@ -46,21 +46,21 @@ void MyTelemetry::send (int i, float pitch, float error, float integral, float d
                 int outI;
 
                 // 50, 150, 250 ...
-                if (i % 100 != 0) {
+                if (i % 100 != 0 && angleController) {
                         // Sending ints since reveiver runs on STM32F0 without fp, and cant printf floats.
-                        inputValueI = pitch * 1000;
-                        errorI = error * 1000;
-                        integralI = integral * 100;
-                        derivativeI = derivative * 100;
-                        outI = out * 100;
+                        inputValueI = int(in1 * 1000);
+                        errorI = int(angleController->getError () * 1000);
+                        integralI = int(angleController->getIntegral () * 100);
+                        derivativeI = int(angleController->getDerivative () * 100);
+                        outI = int(out1);
                 }
-                //                                 100, 200, 300
-                else {
-                        inputValueI = int(speed);
-                        errorI = int(sError);
-                        integralI = int(sIntegral * 100);
-                        derivativeI = int(sDerivative * 100);
-                        outI = int(setPoint * 10000);
+                // 100, 200, 300
+                else if (speedController) {
+                        inputValueI = int(in2);
+                        errorI = int(speedController->getError ());
+                        integralI = int(speedController->getIntegral () * 100);
+                        derivativeI = int(speedController->getDerivative () * 100);
+                        outI = int(out2 * 10000);
                 }
 
                 memcpy (buf, &i, 4);
@@ -88,39 +88,40 @@ void MyTelemetry::onRx (uint8_t *data, size_t len)
         d->print ("\n");
 
         switch (command) {
-//        case 'p':
-//                *kp = param * 10.0f;
-//                break;
-
-//        case 'i':
-//                *ki = param / 10.0f;
-//                break;
-
-//        case 'd':
-//                *kd = param * 10.0f;
-//                break;
-
-        case 'P':
-                *skp = param / 100000.0f;
+        case 'p':
+                angleController->setKp (param * 10.0f);
                 break;
 
-        case 'I':
-                *ski = param / 1000.0f;
+        case 'i':
+                angleController->setKi (param / 10.0f);
                 break;
 
-        case 'D':
-                *skd = param / 100000.0f;
+        case 'd':
+                angleController->setKd (param * 10.0f);
                 break;
 
         case 'v':
-                *VERTICAL = param / 1000.0f;
+                speedController->setConstOffset (param / 1000.0f);
+                break;
+
+        case 'P':
+                speedController->setKp (param / 1000.0f);
+                break;
+
+        case 'I':
+                speedController->setKi (param / 1000.0f);
+                break;
+
+        case 'D':
+                speedController->setKd (param / 1000.0f);
                 break;
 
         default:
                 break;
         }
 
-        *sIntegral = *integral = 0;
+        angleController->setIntegral (0);
+        speedController->setIntegral (0);
 }
 
 /*****************************************************************************/
