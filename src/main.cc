@@ -33,8 +33,6 @@
 #define M_PI 3.14159265358979323846
 #endif
 
-#define SPEED_READOUT_TIMEOUT_MS 40
-
 #define RADIO 1
 #define SYMA_RX 1
 #define WITH_IMU 1
@@ -278,18 +276,18 @@ int main ()
         //                float setPoint = 0;
         //        /*const*/ float VERTICAL = ;
 
-        float sError, sPrevError, sIntegral, sDerivative;
-        sIntegral = sDerivative = sPrevError = 0;
-        float skp, ski, skd;
-        skp = 0; // 20.0f / 100000.0f;
-        ski = 0;
-        skd = 0;
+        //        float sError, sPrevError, sIntegral, sDerivative;
+        //        sIntegral = sDerivative = sPrevError = 0;
+        //        float skp, ski, skd;
+        //        skp = 0; // 20.0f / 100000.0f;
+        //        ski = 0;
+        //        skd = 0;
         float sSetPoint = 0;
         int direction = 0;
 
 #ifdef SYMA_RX
         syma.onRxValues = [&sSetPoint, &direction](SymaX5HWRxProtocol::RxValues const &v) {
-                sSetPoint = v.yaw * 10.0f;
+                sSetPoint = v.yaw;
                 direction = v.roll;
         };
 #endif
@@ -306,8 +304,6 @@ int main ()
         startupTimer.start (5000);
 
         Timer blinkTimer;
-
-        speedReadout.start (SPEED_READOUT_TIMEOUT_MS);
         float speed = 0;
 
         PidController angleController (25, -0.025f, dt, dt / 100.0f);
@@ -316,62 +312,48 @@ int main ()
         angleController.setKd (200);
 
         PidController speedController (100, 0.0f, dt, dt);
-        speedController.setKp (100.0f / 1000.0f);
-        speedController.setKi (80.0f / 1000.0f);
-        speedController.setKd (900 / 1000.0f);
+        speedController.setKp (/*1.0f*/0 / 1000.0f);
+        speedController.setKi (/*80.0f*/0 / 1000.0f);
+        speedController.setKd (/*900*/0 / 1000.0f);
 
 #ifdef TELEMETRY
         MyTelemetry telemetry (&nrfTelemetry, &angleController, &speedController);
 #endif
 
         while (true) {
-                /*+-------------------------------------------------------------------------+*/
-                /*| Speed                                                                   |*/
-                /*+-------------------------------------------------------------------------+*/
-                //                if (speedReadout.isExpired ()) {
+                float setPoint = 0.0f;
 
-                //                        if (out == 0) {
-                //                                /*
-                //                                 * Input capture frezes when it doesn't receive impulses from encoders when motors aren't
-                //                                 spinning,
-                //                                 * so this check (for speed == 0) is moved to main loop, which runs all the time.
-                //                                 *
-                //                                 */
-                //                                speedR = 0;
-                //                                speedL = 0;
-                //                        }
+                if (speedReadout.isExpired ()) {
+                        /*+-------------------------------------------------------------------------+*/
+                        /*| Speed                                                                   |*/
+                        /*+-------------------------------------------------------------------------+*/
 
-                //                        speedAvgL.run (speedL);
-                //                        speedAvgR.run (speedR);
-                //                        speed = (speedAvgL.getResult () + speedAvgR.getResult ()) / 2.0f;
-
-#if 0
-                        // int distance = -(distanceL + distanceR) / 2;
-
-                        sError = sSetPoint - speed;
-                        sIntegral += sError * diScale;
-
-                        // Simple anti integral windup.
-                        if (sIntegral > 25) {
-                                sIntegral = 25;
-                        }
-                        else if (sIntegral < -25) {
-                                sIntegral = -25;
+                        if (out == 0) {
+                                /*
+                                 * Input capture frezes when it doesn't receive impulses from encoders when motors aren't spinning,
+                                 * so this check (for speed == 0) is moved to main loop, which runs all the time.
+                                 *
+                                 */
+                                speedR = 0;
+                                speedL = 0;
                         }
 
-                        sDerivative = (sError - sPrevError) / ddScale;
-                        // Output of this PID is used as an input of the next.
-                        // setPoint = skp * sError + ski * sIntegral + skd * sDerivative;
-                        sPrevError = sError;
-                        speedReadout.start (SPEED_READOUT_TIMEOUT_MS);
-#endif
-                //                }
+                        // speedAvgL.run (speedL);
+                        // speedAvgR.run (speedR);
+                        // speed = (speedAvgL.getResult () + speedAvgR.getResult ()) / 2.0f;
+                        speed = (speedL + speedR) / 2.0f;
 
-                /*+-------------------------------------------------------------------------+*/
-                /*| Angle                                                                   |*/
-                /*+-------------------------------------------------------------------------+*/
+                        setPoint = speedController.run (speed, /*sSetPoint / 100.0f*/0.0f);
+                        //                        d->print (direction);
+                        //                        d->print (" ");
+                        //                        d->println (sSetPoint);
+                        speedReadout.start (500);
+                }
+
                 if (imuReadout.isExpired ()) {
                         static int i = 0;
+
+                        /*---------------------------------------------------------------------------*/
 
                         IGyroscope::GData gd;
 #ifdef WITH_IMU
@@ -428,8 +410,12 @@ int main ()
                                 continue;
                         }
 
+                        /*+-------------------------------------------------------------------------+*/
+                        /*| Angle                                                                   |*/
+                        /*+-------------------------------------------------------------------------+*/
+
                         float pitch = -asinf (-2.0f * (q1 * q3 - q0 * q2));
-                        out = angleController.run (pitch, /*setPoint*/ 0.0f);
+                        out = angleController.run (pitch, /*setPoint*/sSetPoint / 1000.f);
 
                         if (sanityBlockade && (angleController.getError () < 0.002f)) {
                                 angleController.setIntegral (0);
@@ -444,33 +430,19 @@ int main ()
 
                         /*---------------------------------------------------------------------------*/
 
-                        if (out == 0) {
-                                /*
-                                 * Input capture frezes when it doesn't receive impulses from encoders when motors aren't spinning,
-                                 * so this check (for speed == 0) is moved to main loop, which runs all the time.
-                                 *
-                                 */
-                                speedR = 0;
-                                speedL = 0;
-                        }
-
-                        speedAvgL.run (speedL);
-                        speedAvgR.run (speedR);
-                        speed = (speedAvgL.getResult () + speedAvgR.getResult ()) / 2.0f;
-
-                        float out2 = speedController.run (speed, out);
+                        // float out2 = speedController.run (speed, out);
 
                         /*---------------------------------------------------------------------------*/
 
-                        motorLeft.setSpeed (out2 - direction);
-                        motorRight.setSpeed (out2 + direction);
+                        motorLeft.setSpeed (out - direction);
+                        motorRight.setSpeed (out + direction);
 
                         // End
                         imuReadout.start (readoutDelayMs);
                         ++timeCnt;
 
 #ifdef TELEMETRY
-                        telemetry.send (++i, pitch, out, speed, /*out2*/ 0);
+                        telemetry.send (++i, pitch, out, speed, setPoint);
 #endif
                 }
 
@@ -485,6 +457,7 @@ int main ()
 
                 if (blinkTimer.isExpired ()) {
                         blinkTimer.start (100);
+                        // blinkTimer.start (sSetPoint);
                         static bool b = false;
                         led.set ((b = !b));
                 }

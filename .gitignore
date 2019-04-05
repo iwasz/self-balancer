@@ -3,3 +3,5 @@ build
 CMakeLists.txt.user
 data.txt
 build*
+*.elf\
+*.elf

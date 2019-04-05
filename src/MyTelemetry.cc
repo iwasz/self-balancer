@@ -105,11 +105,11 @@ void MyTelemetry::onRx (uint8_t *data, size_t len)
                 break;
 
         case 'P':
-                speedController->setKp (param / 1000.0f);
+                speedController->setKp (param / 100000.0f);
                 break;
 
         case 'I':
-                speedController->setKi (param / 1000.0f);
+                speedController->setKi (param / 100000.0f);
                 break;
 
         case 'D':
